@@ -46,6 +46,11 @@ public class CmdArgValueCollection : List<CmdArgValue>
         return this.Any(arg => arg.Name?.Equals(name, StringComparison.OrdinalIgnoreCase) == true);
     }
     
+    public bool HasValue(string name)
+    {
+        return this.Any(arg => arg.Name?.Equals(name, StringComparison.OrdinalIgnoreCase) == true && arg.HasValue);
+    }
+    
     public string? GetValue(string name, string? defaultValue = null)
     {
         return this.FirstOrDefault(arg => arg.Name?.Equals(name, StringComparison.OrdinalIgnoreCase) == true).Value ?? defaultValue;

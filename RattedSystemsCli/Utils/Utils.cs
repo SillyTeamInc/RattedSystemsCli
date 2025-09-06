@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net;
 using System.Text;
+using TextCopy;
 
 namespace RattedSystemsCli.Utils;
 
@@ -79,5 +80,17 @@ public static class Utils
         var frames = stackTrace.GetFrames();
         var frame = frames[skipFrames];
         return frame;
+    }
+    
+    public static void SetClipboardText(string text)
+    {
+        try
+        {
+            ClipboardService.SetTextAsync(text).Wait();
+        }
+        catch (Exception ex)
+        {
+            Emi.Error($"Failed to set clipboard text: {ex}");
+        }
     }
 }
