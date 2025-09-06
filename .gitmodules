@@ -1,0 +1,3 @@
+[submodule "RattedSystemsCli/ExtendedConsole"]
+	path = RattedSystemsCli/ExtendedConsole
+	url = https://github.com/VastraKai/ExtendedConsole
