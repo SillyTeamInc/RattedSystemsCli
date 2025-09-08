@@ -15,7 +15,6 @@ public class TokenActions
         Emi.Info("New upload token written to " + UploadToken.GetTokenPath() + "!");
     }
     
-    
     [Action("get-token", ArgRequirement.HasFlag)]
     public void GetToken(CmdArgValueCollection pargs)
     {

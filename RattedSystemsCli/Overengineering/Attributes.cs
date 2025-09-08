@@ -13,7 +13,7 @@ public enum ArgRequirement
 }
 
 [AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = false)]
-public class ActionAttribute(string argRequired = "", ArgRequirement requirementType = ArgRequirement.HasValue) : Attribute
+public class ActionAttribute(string argRequired, ArgRequirement requirementType) : Attribute
 {
     public string ArgRequired { get; } = argRequired;
     public ArgRequirement RequirementType { get; } = requirementType;
