@@ -25,12 +25,11 @@ public class Api
         HttpClient = new HttpClient();
         HttpClient.BaseAddress = new Uri(BaseUrl);
         HttpClient.Timeout = TimeSpan.FromSeconds(30);
-        HttpClient.DefaultRequestHeaders.UserAgent.ParseAdd("RattedSystemsCli/1.0");
+        string os = System.Runtime.InteropServices.RuntimeInformation.OSDescription.Trim();
+        HttpClient.DefaultRequestHeaders.UserAgent.ParseAdd("RattedSystemsCli/1.0 (+https://ratted.systems/) " + os);
         HttpClient.DefaultRequestHeaders.Add("Authorization", UploadToken.GetToken() ?? "");
     }
     
-    
-    // just file uploading for now 
     public static async Task<ApiReply> UploadFileAsync(string filePath, string? token = null)
     {
         if (!File.Exists(filePath))
@@ -42,8 +41,10 @@ public class Api
         if (string.IsNullOrWhiteSpace(token))
             throw new InvalidOperationException("No upload token provided or configured");
         
+        
+        
         using var content = new MultipartFormDataContent();
-        using var fileStream = File.OpenRead(filePath);
+        await using var fileStream = File.OpenRead(filePath);
         using var fileContent = new StreamContent(fileStream);
         fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
         content.Add(fileContent, "file", Path.GetFileName(filePath));
@@ -52,8 +53,7 @@ public class Api
         
         var responseBody = await response.Content.ReadAsStringAsync();
         var apiReply = System.Text.Json.JsonSerializer.Deserialize<ApiReply>(responseBody);
-        if (apiReply == null)
-            throw new InvalidOperationException("Failed to parse API response");
-        return apiReply;
+        
+        return apiReply ?? throw new InvalidOperationException("Failed to parse API response");
     }
 }

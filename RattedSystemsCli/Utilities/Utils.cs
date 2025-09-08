@@ -3,7 +3,7 @@ using System.Net;
 using System.Text;
 using TextCopy;
 
-namespace RattedSystemsCli.Utils;
+namespace RattedSystemsCli.Utilities;
 
 public enum HttpResponseState
 {

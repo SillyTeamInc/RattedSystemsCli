@@ -1,9 +1,7 @@
 
 
 
-using RattedSystemsCli.Utils;
-
-namespace BetterLogging;
+namespace RattedSystemsCli.Utilities;
 
 public static class Emi
 {

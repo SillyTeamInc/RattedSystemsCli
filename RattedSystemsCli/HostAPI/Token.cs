@@ -1,3 +1,5 @@
+using RattedSystemsCli.Utilities;
+
 namespace RattedSystemsCli.HostAPI;
 
 public class UploadToken
