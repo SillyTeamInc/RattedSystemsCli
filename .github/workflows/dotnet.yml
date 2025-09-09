@@ -33,7 +33,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 9.0.x
       - name: Publish Linux
         run: dotnet publish -c Release -r linux-x64 --self-contained true -o publish/linux
       - name: Upload Linux Artifact
@@ -50,7 +50,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 9.0.x
       - name: Publish Windows
         run: dotnet publish -c Release -r win-x64 --self-contained true -o publish/windows
       - name: Upload Windows Artifact
