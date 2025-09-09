@@ -48,6 +48,7 @@ jobs:
         with:
           name: linux-build
           path: publish/linux/
+          retention-days: 1 
 
   publish-windows:
     needs: build-test
@@ -67,6 +68,7 @@ jobs:
         with:
           name: windows-build
           path: publish/windows/
+          retention-days: 1
 
   release:
     needs: [publish-linux, publish-windows]
