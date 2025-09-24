@@ -20,7 +20,7 @@ public struct CmdArg
     public string? Name;
     public string? Description;
     public CmdArgDescription? ValueDescription;
-    
+    public bool Hidden;
 }
 
 public class CmdArgValueCollection : List<CmdArgValue>
@@ -83,6 +83,7 @@ public class CmdLineParser
         Console.WriteLine("Available arguments:");
         foreach (CmdArg arg in Args)
         {
+            if (arg.Hidden) continue;
             // format
             // reuired value args:
             // --arg-name:<value name> - description
@@ -154,8 +155,11 @@ public class CmdLineParser
                 }
             }
 
+            var col = new CmdArgValueCollection(parsedArgs);
+            if (!col.HasFlag("help")) return col;
             
-            return new CmdArgValueCollection(parsedArgs);
+            ShowHelp();
+            throw new CommandParserException(string.Empty);
         } catch (Exception ex)
         {
             if (ex is CommandParserException)

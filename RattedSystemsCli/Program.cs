@@ -2,13 +2,19 @@
 global using Console = ExtendedConsole.Console;
 using System.Diagnostics;
 using System.Reflection;
+using System.Text.Json;
 using RattedSystemsCli.Actions;
 using RattedSystemsCli.HostAPI;
 using RattedSystemsCli.Overengineering;
 using RattedSystemsCli.Utilities;
+using RattedSystemsCli.Utilities.Services;
 using TextCopy;
 
 namespace RattedSystemsCli;
+
+// Shut up
+#pragma warning disable CS0618 // Type or member is obsolete
+
 
 class Program
 {
@@ -18,7 +24,7 @@ class Program
         ActionBuilder builder = new ActionBuilder();
         builder.Build(Assembly.GetExecutingAssembly());
         
-        CmdLineParser parser = new CmdLineParser("ratted.systems cli", new CmdArg[]
+        CmdLineParser parser = new CmdLineParser("ratted.systems cli " + ThisAssembly.Git.BaseTag, new CmdArg[]
         {
             new CmdArg
             {
@@ -61,10 +67,34 @@ class Program
             {
                 Name = "copy-to-clipboard",
                 Description = "Copies related output (like the uploaded file url) to the clipboard"
+            },
+            new CmdArg
+            {
+                Name = "run-as-service",
+                Description = "Run as a background service.",
+                Hidden = true
+            },
+            new CmdArg
+            {
+                Name = "service-action",
+                Description = "Manage the ratted.systems cli service for auto-uploading files.",
+                ValueDescription = new CmdArgDescription
+                {
+                    Name = "action",
+                    Description = "The action to perform on the service (start, stop, restart, status, install, uninstall)",
+                    Required = true
+                } 
+            },
+            new CmdArg
+            {
+                Name = "version",
+                Description = "Show version information"
             }
         });
-        parser.SetFooter("More functionality coming soon :3");
 
+
+        parser.SetFooter($"More functionality coming soon :3 | {ThisAssembly.Git.Branch}-{ThisAssembly.Git.Commit}");
+        
         CmdArgValueCollection? pargs = null;
 
         try
@@ -73,6 +103,8 @@ class Program
         }
         catch (CommandParserException ex)
         {
+            if (ex.Message.IsNullOrEmpty()) return;
+            
             Emi.Error(ex.Message);
             parser.ShowHelp();
             return;
@@ -82,13 +114,6 @@ class Program
             Console.WriteLine("An unexpected error occurred: " + ex);
             return;
         }
-
-        if (pargs.HasFlag("help"))
-        {
-            parser.ShowHelp();
-            return;
-        }
-        
         
         builder.Execute(pargs);
         return;

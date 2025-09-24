@@ -93,4 +93,27 @@ public static class Utils
             Emi.Error($"Failed to set clipboard text: {ex}");
         }
     }
+
+    public static string RelativeTimeSpan(TimeSpan relative)
+    {
+        double value;
+        string unit;
+
+        if ((value = Math.Round(relative.TotalSeconds, 2)) < 60)
+            unit = "second";
+        else if ((value = Math.Round(relative.TotalMinutes, 2)) < 60)
+            unit = "minute";
+        else if ((value = Math.Round(relative.TotalHours, 2)) < 24)
+            unit = "hour";
+        else if ((value = Math.Round(relative.TotalDays, 2)) < 30)
+            unit = "day";
+        else
+        {
+            value = Math.Round(relative.TotalDays / 30, 2);
+            unit = "month";
+        }
+
+        return $"{value} {unit}{(Math.Abs(value - 1) < 0.001 ? "" : "s")} ago";
+        
+    }
 }
