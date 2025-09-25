@@ -28,7 +28,7 @@ public class UpdateChecker
 
     public static string GetCurrentTag()
     {
-        return ThisAssembly.Git.BaseTag;
+        return string.IsNullOrEmpty(ThisAssembly.Git.BaseTag) ? ThisAssembly.Git.Branch : ThisAssembly.Git.BaseTag;
     }
     
     public static async Task<GhReleaseInfo?> FetchLatestReleaseInfoAsync()

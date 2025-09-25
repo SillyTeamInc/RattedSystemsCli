@@ -13,7 +13,7 @@ public class MiscActions
     [Action("version", ArgRequirement.HasFlag)]
     public void VersionAction(CmdArgValueCollection pargs)
     {
-        Emi.Info("ratted.systems cli " + ThisAssembly.Git.BaseTag);
+        Emi.Info("ratted.systems cli " + UpdateChecker.GetCurrentTag());
         Emi.Info("Commit: " + ThisAssembly.Git.Commit);
         Emi.Info("Branch: " + ThisAssembly.Git.Branch);
         Emi.Info("Repository: " + ThisAssembly.Git.RepositoryUrl);

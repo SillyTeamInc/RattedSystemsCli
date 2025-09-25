@@ -7,6 +7,7 @@ using RattedSystemsCli.Actions;
 using RattedSystemsCli.HostAPI;
 using RattedSystemsCli.Overengineering;
 using RattedSystemsCli.Utilities;
+using RattedSystemsCli.Utilities.Github;
 using RattedSystemsCli.Utilities.Services;
 using TextCopy;
 
@@ -24,7 +25,7 @@ class Program
         ActionBuilder builder = new ActionBuilder();
         builder.Build(Assembly.GetExecutingAssembly());
         
-        CmdLineParser parser = new CmdLineParser($"ratted.systems cli {ThisAssembly.Git.BaseTag} ({ThisAssembly.Git.Branch}-{ThisAssembly.Git.Commit})", new CmdArg[]
+        CmdLineParser parser = new CmdLineParser($"ratted.systems cli {UpdateChecker.GetCurrentTag()} ({ThisAssembly.Git.Branch}-{ThisAssembly.Git.Commit})", new CmdArg[]
         {
             new CmdArg
             {
