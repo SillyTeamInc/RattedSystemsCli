@@ -24,7 +24,7 @@ class Program
         ActionBuilder builder = new ActionBuilder();
         builder.Build(Assembly.GetExecutingAssembly());
         
-        CmdLineParser parser = new CmdLineParser("ratted.systems cli " + ThisAssembly.Git.BaseTag, new CmdArg[]
+        CmdLineParser parser = new CmdLineParser($"ratted.systems cli {ThisAssembly.Git.BaseTag} ({ThisAssembly.Git.Branch}-{ThisAssembly.Git.Commit})", new CmdArg[]
         {
             new CmdArg
             {
@@ -89,11 +89,46 @@ class Program
             {
                 Name = "version",
                 Description = "Show version information"
+            },
+            new CmdArg
+            {
+                Name = "check-for-updates",
+                Description = "Check for updates",
+                ValueDescription = new CmdArgDescription
+                {
+                    Name = "apply",
+                    Description = "If specified, will apply the update if one is found",
+                    Required = false
+                }
+            },
+            new CmdArg
+            {
+                Name = "apply-update",
+                Description = "Apply an update (used internally by the update process)",
+                ValueDescription = new CmdArgDescription
+                {
+                    Name = "path",
+                    Description = "The path to the downloaded update file",
+                    Required = true
+                },
+                Hidden = true
+            },
+            new CmdArg
+            {
+                Name = "finish-update",
+                Description = "Finish applying an update (used internally by the update process)",
+                ValueDescription = new CmdArgDescription
+                {
+                    Name = "path",
+                    Description = "The path to the old executable to be replaced",
+                    Required = true
+                },
+                Hidden = true
             }
         });
 
 
-        parser.SetFooter($"More functionality coming soon :3 | {ThisAssembly.Git.Branch}-{ThisAssembly.Git.Commit}");
+        parser.SetFooter($"More functionality coming soon :3");
         
         CmdArgValueCollection? pargs = null;
 

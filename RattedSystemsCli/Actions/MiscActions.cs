@@ -1,6 +1,7 @@
 #pragma warning disable CS0618 // Type or member is obsolete
 using RattedSystemsCli.Overengineering;
 using RattedSystemsCli.Utilities;
+using RattedSystemsCli.Utilities.Github;
 
 namespace RattedSystemsCli.Actions;
 
