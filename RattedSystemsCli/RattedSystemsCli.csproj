@@ -8,10 +8,12 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="FileWatcherEx" Version="2.7.0" />
       <PackageReference Include="GitInfo" Version="3.5.0">
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         <PrivateAssets>all</PrivateAssets>
       </PackageReference>
+      <PackageReference Include="OsNotifications" Version="1.1.3" />
       <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.0-rc.1.25451.107" />
       <PackageReference Include="TextCopy" Version="6.2.1" />
       <PackageReference Include="Tmds.DBus" Version="0.21.2" />

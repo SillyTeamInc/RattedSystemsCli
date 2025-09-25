@@ -81,7 +81,7 @@ class Program
                 ValueDescription = new CmdArgDescription
                 {
                     Name = "action",
-                    Description = "The action to perform on the service (start, stop, restart, status, install, uninstall)",
+                    Description = "The action to perform on the service (start, stop, restart, status, install, uninstall, configure)",
                     Required = true
                 } 
             },

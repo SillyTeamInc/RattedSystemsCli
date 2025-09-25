@@ -1,6 +1,8 @@
 using RattedSystemsCli.Overengineering;
 using RattedSystemsCli.Utilities;
 using RattedSystemsCli.Utilities.Github;
+using RattedSystemsCli.Utilities.Services;
+
 #pragma warning disable CS0618 // Type or member is obsolete
 
 namespace RattedSystemsCli.Actions;
@@ -12,7 +14,6 @@ public class UpdateActions
     [Action("check-for-updates", ArgRequirement.HasFlag)]
     public void CheckForUpdatesAction(CmdArgValueCollection pargs)
     {
-        Console.WriteLine();
         if (!OperatingSystem.IsLinux() && !OperatingSystem.IsWindows())
         {
             Emi.Error("Update checking is only supported on Windows and Linux.");
@@ -31,8 +32,8 @@ public class UpdateActions
                 Environment.ExitCode = 1;
                 return;
             }
-            string latestTag = latestRelease.TagName;
-
+            
+            
             var updateInfo = UpdateChecker.IsUpdateAvailableAsync(currentTag, latestRelease).Result;
             if (updateInfo.IsUpdateAvailable)
             {
@@ -113,8 +114,27 @@ public class UpdateActions
 
         try
         {
+            try
+            {
+                bool wasRunning = ServiceUtil.IsServiceInstalled() && !ServiceUtil.IsServiceRunning();
+                if (wasRunning)
+                {
+                    ServiceUtil.StartService();
+                    Emi.Info("Restarted service!");
+                } 
+            } catch (PlatformNotSupportedException)
+            {
+                // Ignore on unsupported platforms
+            } catch (Exception ex)
+            {
+                Emi.Error("Failed to restart service: " + ex);
+            }
+            
+            
             File.Delete(updatedPath);
             Emi.Info($"Successfully updated to version {UpdateChecker.GetCurrentTag()} ({ThisAssembly.Git.Branch}-{ThisAssembly.Git.Commit})");
+            
+            
             Environment.Exit(0);
         }
         catch (Exception ex)

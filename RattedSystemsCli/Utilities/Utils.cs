@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net;
 using System.Text;
+using RattedSystemsCli.Utilities.Github;
 using TextCopy;
 
 namespace RattedSystemsCli.Utilities;
@@ -115,5 +116,25 @@ public static class Utils
 
         return $"{value} {unit}{(Math.Abs(value - 1) < 0.001 ? "" : "s")} ago";
         
+    }
+    
+    public static string GetUserAgent()
+    {
+        string os = System.Runtime.InteropServices.RuntimeInformation.OSDescription.Trim();
+        string version = UpdateChecker.GetCurrentTag()[1..];
+        return $"RattedSystemsCli/{version} (+https://ratted.systems/) {os}";
+    }
+    
+    public static void AddUserAgentHeader(this HttpWebRequest request)
+    {
+        request.UserAgent = GetUserAgent();
+    }
+    
+    public static void AddUserAgentHeader(this HttpClient client)
+    {
+        if (client.DefaultRequestHeaders.UserAgent.ToString() != GetUserAgent())
+        {
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(GetUserAgent());
+        }
     }
 }

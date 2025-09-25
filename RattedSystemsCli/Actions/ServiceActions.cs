@@ -22,6 +22,7 @@ public class ServiceActions
         return;
     }
 
+    // technically you could do this on windows, but it's not really intended...
     [Action("run-as-service", ArgRequirement.HasFlag)]
     public void RunAsService(CmdArgValueCollection pargs)
     {

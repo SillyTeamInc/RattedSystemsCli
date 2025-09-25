@@ -1,4 +1,7 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
+using RattedSystemsCli.Utilities;
+using RattedSystemsCli.Utilities.Config;
 
 namespace RattedSystemsCli.HostAPI;
 
@@ -24,10 +27,20 @@ public class Api
     {
         HttpClient = new HttpClient();
         HttpClient.BaseAddress = new Uri(BaseUrl);
-        HttpClient.Timeout = TimeSpan.FromSeconds(30);
+        HttpClient.Timeout = Timeout.InfiniteTimeSpan;
         string os = System.Runtime.InteropServices.RuntimeInformation.OSDescription.Trim();
-        HttpClient.DefaultRequestHeaders.UserAgent.ParseAdd("RattedSystemsCli/1.0 (+https://ratted.systems/) " + os);
-        HttpClient.DefaultRequestHeaders.Add("Authorization", UploadToken.GetToken() ?? "");
+        HttpClient.AddUserAgentHeader();
+    }
+
+    private static void AddAuthorizationHeader(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            throw new ArgumentException("Please provide a valid token", nameof(token));
+        
+        if (HttpClient.DefaultRequestHeaders.Contains("Authorization"))
+            HttpClient.DefaultRequestHeaders.Remove("Authorization");
+        
+        HttpClient.DefaultRequestHeaders.Add("Authorization", token);
     }
     
     public static async Task<ApiReply> UploadFileAsync(string filePath, string? token = null)
@@ -41,18 +54,17 @@ public class Api
         if (string.IsNullOrWhiteSpace(token))
             throw new InvalidOperationException("No upload token provided or configured");
         
-        
-        
         using var content = new MultipartFormDataContent();
         await using var fileStream = File.OpenRead(filePath);
         using var fileContent = new StreamContent(fileStream);
         fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
         content.Add(fileContent, "file", Path.GetFileName(filePath));
 
+        AddAuthorizationHeader(UploadToken.GetToken() ?? throw new InvalidOperationException("No upload token configured"));
         var response = await HttpClient.PostAsync(UploadEndpoint, content);
         
         var responseBody = await response.Content.ReadAsStringAsync();
-        var apiReply = System.Text.Json.JsonSerializer.Deserialize<ApiReply>(responseBody);
+        var apiReply = JsonSerializer.Deserialize<ApiReply>(responseBody);
         
         return apiReply ?? throw new InvalidOperationException("Failed to parse API response");
     }

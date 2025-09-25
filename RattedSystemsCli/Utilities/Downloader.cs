@@ -126,6 +126,7 @@ public class Downloader
     private void UpdateFileSize()
     {
         using HttpClient client = new HttpClient();
+        client.AddUserAgentHeader();
         using HttpResponseMessage response = client.GetAsync(Url, HttpCompletionOption.ResponseHeadersRead).Result;
         response.EnsureSuccessStatusCode();
         TotalBytes = response.Content.Headers.ContentLength ?? -1;
@@ -177,7 +178,7 @@ public class Downloader
             request.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(start, end);
 
             using var client = new HttpClient();
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("RattedSystemsCli/1.0 (+https://ratted.systems/)");
+            client.AddUserAgentHeader();
 
             using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
             response.EnsureSuccessStatusCode();

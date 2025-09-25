@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using RattedSystemsCli.Utilities.Services;
 
 #pragma warning disable CS0618 // Type or member is obsolete
 
@@ -47,32 +48,6 @@ public class UpdateChecker
         var responseBody = await response.Content.ReadAsStringAsync();
         return JsonSerializer.Deserialize<GhReleaseInfo>(responseBody);
     }
-    
-
-    /*public static string GetLatestTag()
-    {
-        string url = $"https://api.github.com/repos/{GetRepository()}/releases/latest";
-
-        using HttpClient client = new();
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("RattedSystemsCli");
-
-        var response = client.GetAsync(url).Result;
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new Exception("Failed to fetch latest release info from GitHub. " +
-                                $"Status code: {response.StatusCode}");
-        }
-
-        var responseBody = response.Content.ReadAsStringAsync().Result;
-        using var doc = JsonDocument.Parse(responseBody);
-        if (doc.RootElement.TryGetProperty("tag_name", out var tagElement))
-        {
-            return tagElement.GetString() ?? "unknown";
-        }
-
-        return "unknown";
-    }
-    */
 
     public static async Task<UpdateInfo> IsUpdateAvailableAsync(string currentTag, GhReleaseInfo releaseInfo)
     {
@@ -110,43 +85,60 @@ public class UpdateChecker
         public string ReleaseNotes { get; set; } = "";
     }
 
-        public static async Task DownloadAndApplyUpdateAsync(GhReleaseInfo updateInfo)
+    public static async Task DownloadAndApplyUpdateAsync(GhReleaseInfo updateInfo)
+    {
+        string executablePath = Path.GetFileNameWithoutExtension(Process.GetCurrentProcess().MainModule?.FileName ?? "RattedSystemsCli");
+        string currentFullPath = Process.GetCurrentProcess().MainModule?.FileName ?? "";
+        
+        try
         {
-            string executablePath = Path.GetFileNameWithoutExtension(Process.GetCurrentProcess().MainModule?.FileName ?? "RattedSystemsCli");
-            string currentFullPath = Process.GetCurrentProcess().MainModule?.FileName ?? "";
-            
-            if (OperatingSystem.IsWindows()) executablePath += ".exe"; 
-            
-            var asset = updateInfo.Assets.FirstOrDefault(a => a.Name.Equals(executablePath, StringComparison.OrdinalIgnoreCase));
-            if (asset == null)
+            bool running = ServiceUtil.IsServiceInstalled() && ServiceUtil.IsServiceRunning();
+            if (running)
             {
-                throw new Exception("No suitable asset found for the current platform.");
-            }
-            string downloadUrl = asset.BrowserDownloadUrl;
-            
-            string tempFilePath = Path.Combine(Path.GetTempPath(), executablePath + ".tmp");
-
-            Downloader downloader = new Downloader(downloadUrl, tempFilePath, true);
-            int coreCount = Environment.ProcessorCount;
-            Emi.Info($"Downloading update using {coreCount} threads...");
-            await downloader.DownloadFileMultithreaded(coreCount); 
-            
-
-            try
-            {
-                if (OperatingSystem.IsLinux())
-                {
-                    await Process.Start("chmod", $"+x \"{tempFilePath}\"").WaitForExitAsync();
-                }
-                Emi.Info("Restarting to apply update...");
-                Process.Start(tempFilePath, "--apply-update:\"" + currentFullPath + "\"");
-                Environment.Exit(0);
-            } catch (Exception ex)
-            {
-                Emi.Error("Failed to apply update: " + ex);
-                Environment.Exit(1);
-            }
+                ServiceUtil.StopService();
+                Emi.Info("Stopped running service to apply update.");
+            } 
+        } catch (PlatformNotSupportedException)
+        {
+            // Ignore on unsupported platforms
+        } catch (Exception ex)
+        {
+            Emi.Error("Failed to stop service: " + ex);
+            Environment.Exit(1);
         }
+
+        if (OperatingSystem.IsWindows()) executablePath += ".exe"; 
+        
+        var asset = updateInfo.Assets.FirstOrDefault(a => a.Name.Equals(executablePath, StringComparison.OrdinalIgnoreCase));
+        if (asset == null)
+        {
+            throw new Exception("No suitable asset found for the current platform.");
+        }
+        string downloadUrl = asset.BrowserDownloadUrl;
+        
+        string tempFilePath = Path.Combine(Path.GetTempPath(), executablePath + ".tmp");
+
+        Downloader downloader = new Downloader(downloadUrl, tempFilePath, true);
+        int coreCount = Environment.ProcessorCount;
+        Emi.Info($"Downloading update using {coreCount} threads...");
+        await downloader.DownloadFileMultithreaded(coreCount); 
+        
+
+        try
+        {
+            if (OperatingSystem.IsLinux())
+            {
+                await Process.Start("chmod", $"+x \"{tempFilePath}\"").WaitForExitAsync();
+            }
+            Emi.Info("Restarting to apply update...");
+            Process.Start(tempFilePath, "--apply-update:\"" + currentFullPath + "\"");
+            Environment.Exit(0);
+        } catch (Exception ex)
+        {
+            Emi.Error("Failed to apply update: " + ex);
+            Environment.Exit(1);
+        }
+    }
 }
 
 public class GhReleaseInfo
