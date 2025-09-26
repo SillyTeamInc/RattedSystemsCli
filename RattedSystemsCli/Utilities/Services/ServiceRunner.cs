@@ -7,15 +7,7 @@ namespace RattedSystemsCli.Utilities.Services;
 
 public class ServiceRunner
 {
-    public static void ShowNotification(string title, string message)
-    {
-        try {
-            // this lib is stupid and for some reason nobody
-            // has written a good cross-platform notification library.
-            // i fucking hate this.
-            Notifications.ShowNotification(title, message); 
-        } catch (PlatformNotSupportedException) { }
-    }
+    
     public static void RunAsService()
     {
         if (OperatingSystem.IsLinux())
@@ -25,14 +17,14 @@ public class ServiceRunner
         
         Notifications.BundleIdentifier = "RattedSystemsCli";
         Notifications.SetGuiApplication(false); 
-        ShowNotification("ratted.systems service", "service started and running in the background.");
+        Utils.ShowNotification("ratted.systems", "service started and running in the background.");
         
         ConfigManager.LoadServiceConfig();
         ConfigManager.WatchForConfigChanges();
         
         var config = ConfigManager.CurrentServiceConfig;
         string watchDir = config?.WatchDirectory ?? "";
-        string fileFilter = config?.FileFilter;
+        string fileFilter = config?.FileFilter ?? "";
 
         Emi.Debug("Watch directory from config: " + watchDir);
         if (string.IsNullOrWhiteSpace(watchDir) || !Directory.Exists(watchDir))
@@ -67,7 +59,7 @@ public class ServiceRunner
                     var fileInfo = new FileInfo(@event.FullPath);
                     if (fileInfo.Length > 50 * 1024 * 1024)
                     {
-                        ShowNotification("ratted.systems service", "uploading large file, this may take a bit!");
+                        Utils.ShowNotification("ratted.systems", "uploading large file, this may take a bit!");
                     }
                     
                     var reply = await Api.UploadFileAsync(@event.FullPath);
@@ -77,19 +69,19 @@ public class ServiceRunner
                         
                         Emi.Info("File uploaded successfully!");
                         Utils.SetClipboardText(reply.Resource ?? "");
-                        ShowNotification("ratted.systems service", "copied upload url to clipboard!");
+                        Utils.ShowNotification("ratted.systems", "copied upload url to clipboard!");
                         Emi.Info("File URL: " + reply.Resource + " (copied to clipboard)");
                         // TODO: Delay each upload by a second
                     }
                     else
                     {
                         Emi.Error("File upload failed: " + reply.Message);
-                        ShowNotification("ratted.systems service", "file upload failed: " + reply.Message);
+                        Utils.ShowNotification("ratted.systems", "file upload failed: " + reply.Message);
                     }
                 }
                 catch (Exception ex)
                 {
-                    ShowNotification("ratted.systems service", "file upload failed: " + ex.Message);
+                    Utils.ShowNotification("ratted.systems", "file upload failed: " + ex.Message);
                     Emi.Error("An error occurred during file upload: " + ex);
                 }
             });

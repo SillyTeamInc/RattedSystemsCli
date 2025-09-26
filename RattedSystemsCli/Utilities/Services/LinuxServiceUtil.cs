@@ -77,16 +77,43 @@ public class LinuxServiceUtil : IServiceUtil
             throw new EmiException("Service is already installed.");
 
         var exePath = Process.GetCurrentProcess().MainModule?.FileName
-            ?? throw new EmiException("Could not determine the executable path.");
+                      ?? throw new EmiException("Could not determine the executable path.");
 
+        // Collect environment variables for graphical session
+        var envLines = new List<string>();
+
+        string? display = Environment.GetEnvironmentVariable("DISPLAY");
+        if (!string.IsNullOrWhiteSpace(display))
+            envLines.Add($"Environment=DISPLAY={display}");
+
+        string? xauth = Environment.GetEnvironmentVariable("XAUTHORITY");
+        if (!string.IsNullOrWhiteSpace(xauth) && File.Exists(xauth))
+            envLines.Add($"Environment=XAUTHORITY={xauth}");
+
+        string? wayland = Environment.GetEnvironmentVariable("WAYLAND_DISPLAY");
+        if (!string.IsNullOrWhiteSpace(wayland))
+            envLines.Add($"Environment=WAYLAND_DISPLAY={wayland}");
+
+        string? dbus = Environment.GetEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS");
+        if (!string.IsNullOrWhiteSpace(dbus))
+            envLines.Add($"Environment=DBUS_SESSION_BUS_ADDRESS={dbus}");
+
+        Emi.Info("Using the following environment variables for the service:");
+        foreach (var line in envLines)
+        {
+            Emi.Info("  " + line.Replace("Environment=", ""));
+        }
+        
+        // Build the service file dynamically
         var serviceFileContent = $@"[Unit]
 Description=Ratted Systems Watcher Service
-After=network.target
+After=graphical.target
 
 [Service]
 Type=simple
 ExecStart={exePath} --run-as-service
 Restart=on-failure
+{string.Join(Environment.NewLine, envLines)}
 
 [Install]
 WantedBy=default.target
@@ -103,6 +130,7 @@ WantedBy=default.target
         ReloadDaemon();
         Emi.Info("Service installed successfully. Use the start action to start it.");
     }
+
 
     public void UninstallService()
     {
