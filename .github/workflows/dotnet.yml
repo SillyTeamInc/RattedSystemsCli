@@ -95,6 +95,9 @@ jobs:
         with:
           name: windows-build
           path: release/windows
+      - name: Remove License Files
+        run: |
+           find release/ -type f -name "*.md" -delete
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
