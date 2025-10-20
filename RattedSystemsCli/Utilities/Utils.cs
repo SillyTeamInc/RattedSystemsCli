@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Net;
 using System.Text;
@@ -167,10 +168,12 @@ public static class Utils
     {
         try
         {
-            // this lib is stupid and for some reason nobody
-            // has written a good cross-platform notification library.
-            // i fucking hate this.
-            Notifications.ShowNotification(title, message);
+            if (OperatingSystem.IsLinux())
+            { 
+                Process.Start("notify-send", $"--app-name \"ratted.systems\" \"{title}\" \"{message}\"").WaitForExit();
+            }
+            else Notifications.ShowNotification(title, message);
+            
         }
         catch (PlatformNotSupportedException)
         {

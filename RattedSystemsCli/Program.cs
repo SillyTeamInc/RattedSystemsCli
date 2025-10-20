@@ -5,8 +5,10 @@ using System.Reflection;
 using System.Text.Json;
 using RattedSystemsCli.Actions;
 using RattedSystemsCli.HostAPI;
+using RattedSystemsCli.HostAPI.SocketUploader;
 using RattedSystemsCli.Overengineering;
 using RattedSystemsCli.Utilities;
+using RattedSystemsCli.Utilities.Config;
 using RattedSystemsCli.Utilities.Github;
 using RattedSystemsCli.Utilities.Services;
 using TextCopy;
@@ -56,13 +58,25 @@ class Program
             new CmdArg
             {
                 Name = "upload-file",
-                Description = "Upload a file to ratted.systems",
+                Description = "Upload a file to ratted.systems. Uses socket if upload is >100MB.",
                 ValueDescription = new CmdArgDescription
                 {
                     Name = "path",
                     Description = "The path to the file to upload",
                     Required = true
                 }
+            },
+            new CmdArg
+            {
+                Name = "upload-method",
+                Description = "Defines the upload method to use.",
+                ValueDescription = new CmdArgDescription
+                {
+                    Name = "method",
+                    Description = "The upload method to use (socket, post)",
+                    Required = false
+                }
+                
             },
             new CmdArg
             {
