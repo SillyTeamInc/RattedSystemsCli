@@ -1,6 +1,7 @@
 using FileWatcherEx;
 using OsNotifications;
 using RattedSystemsCli.HostAPI;
+using RattedSystemsCli.HostAPI.SocketUploader;
 using RattedSystemsCli.Utilities.Config;
 
 namespace RattedSystemsCli.Utilities.Services;
@@ -62,21 +63,47 @@ public class ServiceRunner
                         Utils.ShowNotification("ratted.systems", "uploading large file, this may take a bit!");
                     }
                     
-                    var reply = await Api.UploadFileAsync(@event.FullPath);
+                    if (fileInfo.Length > 100 * 1000 * 1000)
+                    {
+                        try
+                        {
+                            Emi.Warn("File is larger than 100 MB, using socket upload method.");
+                            var link = await SocketUploader.UploadFileAsync(@event.FullPath);
+                            if (!string.IsNullOrWhiteSpace(link))
+                            {
+                                Emi.Info("File uploaded successfully via socket uploader!");
+                                Utils.SetClipboardText(link);
+                                Utils.ShowNotification("ratted.systems", "copied upload url to clipboard!");
+                                Emi.Info("File URL: " + link + " (copied to clipboard)");
+                            }
+                            else
+                            {
+                                Emi.Error("Socket file upload failed.");
+                                Utils.ShowNotification("ratted.systems", "socket file upload failed.");
+                            }
+                        } catch (Exception ex)
+                        {
+                            Utils.ShowNotification("ratted.systems", "socket file upload failed: " + ex.Message);
+                            Emi.Error("An error occurred during socket file upload: " + ex);
+                        }
+                    } else
+                    {
+                        var reply = await Api.UploadFileAsync(@event.FullPath);
 
-                    if (reply.Success)
-                    {
-                        
-                        Emi.Info("File uploaded successfully!");
-                        Utils.SetClipboardText(reply.Resource ?? "");
-                        Utils.ShowNotification("ratted.systems", "copied upload url to clipboard!");
-                        Emi.Info("File URL: " + reply.Resource + " (copied to clipboard)");
-                        // TODO: Delay each upload by a second
-                    }
-                    else
-                    {
-                        Emi.Error("File upload failed: " + reply.Message);
-                        Utils.ShowNotification("ratted.systems", "file upload failed: " + reply.Message);
+                        if (reply.Success)
+                        {
+
+                            Emi.Info("File uploaded successfully!");
+                            Utils.SetClipboardText(reply.Resource ?? "");
+                            Utils.ShowNotification("ratted.systems", "copied upload url to clipboard!");
+                            Emi.Info("File URL: " + reply.Resource + " (copied to clipboard)");
+                            // TODO: Delay each upload by a second
+                        }
+                        else
+                        {
+                            Emi.Error("File upload failed: " + reply.Message);
+                            Utils.ShowNotification("ratted.systems", "file upload failed: " + reply.Message);
+                        }
                     }
                 }
                 catch (Exception ex)
