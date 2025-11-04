@@ -107,7 +107,10 @@ public class UpdateChecker
             Environment.Exit(1);
         }
 
-        if (OperatingSystem.IsWindows()) executablePath += ".exe"; 
+        string assetName = "";
+        if (OperatingSystem.IsLinux()) assetName = "RattedSystemsCli";
+        else if (OperatingSystem.IsMacOS()) assetName = "RattedSystemsCli.macos";
+        else if (OperatingSystem.IsWindows()) assetName = "RattedSystemsCli.exe"; 
         
         var asset = updateInfo.Assets.FirstOrDefault(a => a.Name.Equals(executablePath, StringComparison.OrdinalIgnoreCase));
         if (asset == null)

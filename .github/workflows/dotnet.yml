@@ -48,9 +48,6 @@ jobs:
           for f in publish/linux/*.pdb; do
             mv "$f" "${f%.pdb}.linux.pdb"
           done
-      - name: Rename Linux Executable
-        run: |
-          mv publish/linux/RattedSystemsCli publish/linux/RattedSystemsCli.linux
       - name: Upload Linux Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -60,7 +57,7 @@ jobs:
 
   publish-windows:
     needs: build-test
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
