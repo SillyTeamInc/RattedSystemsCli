@@ -14,9 +14,9 @@ public class UpdateActions
     [Action("check-for-updates", ArgRequirement.HasFlag)]
     public void CheckForUpdatesAction(CmdArgValueCollection pargs)
     {
-        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsWindows())
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsWindows() && !OperatingSystem.IsMacOS())
         {
-            Emi.Error("Update checking is only supported on Windows and Linux.");
+            Emi.Error("Update checking is only supported on Windows, Linux, and macOS.");
             Emi.Error("For other platforms, you need to compile from source.");
             return;
         }
