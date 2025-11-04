@@ -2,6 +2,7 @@ using RattedSystemsCli.Overengineering;
 using RattedSystemsCli.Utilities;
 using RattedSystemsCli.Utilities.Github;
 using RattedSystemsCli.Utilities.Services;
+using RattedSystemsCli.Utilities.Services.ServiceUtils;
 
 #pragma warning disable CS0618 // Type or member is obsolete
 

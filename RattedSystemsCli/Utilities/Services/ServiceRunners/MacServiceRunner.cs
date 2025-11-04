@@ -3,19 +3,14 @@ using OsNotifications;
 using RattedSystemsCli.HostAPI;
 using RattedSystemsCli.HostAPI.SocketUploader;
 using RattedSystemsCli.Utilities.Config;
+using RattedSystemsCli.Utilities.Services.ServiceUtils;
 
-namespace RattedSystemsCli.Utilities.Services;
+namespace RattedSystemsCli.Utilities.Services.ServiceRunners;
 
-public class ServiceRunner
+public class MacServiceRunner : IServiceRunner
 {
-    
-    public static void RunAsService()
+    public void RunAsService()
     {
-        if (OperatingSystem.IsLinux())
-        {
-            Emi.Debug("Running as a Linux daemon.");
-        }
-        
         Notifications.BundleIdentifier = "RattedSystemsCli";
         Notifications.SetGuiApplication(false); 
         Utils.ShowNotification("ratted.systems", "service started and running in the background.");
@@ -49,95 +44,6 @@ public class ServiceRunner
         };
 
         Emi.Info("Watching directory: " + watchDir);
-        
-        /*watcher.OnChanged += async (sender, @event) =>
-        {
-            Task.Run(async () =>
-            {
-                Emi.Info($"File {@event.ChangeType}: {@event.FullPath}");
-
-                if (@event.FullPath.StartsWith("."))
-                {
-                    int iterations = 0;
-                    while (@event.FullPath.StartsWith("."))
-                    {
-                        @event.FullPath = @event.FullPath.Substring(1);
-                        if (iterations++ > 10)
-                        {
-                            Emi.Error("File path correction exceeded maximum iterations. Aborting.");
-                            return;
-                        }
-                    }
-                }
-                
-                try
-                {
-                    var fileInfo = new FileInfo(@event.FullPath);
-                    if (fileInfo.Length > 50 * 1024 * 1024)
-                    {
-                        Utils.ShowNotification("ratted.systems", "uploading large file, this may take a bit!");
-                    }
-                    
-                    if (fileInfo.Length > 100 * 1000 * 1000)
-                    {
-                        try
-                        {
-                            Emi.Warn("File is larger than 100 MB, using socket upload method.");
-                            var link = await SocketUploader.UploadFileAsync(@event.FullPath);
-                            if (!string.IsNullOrWhiteSpace(link))
-                            {
-                                Emi.Info("File uploaded successfully via socket uploader!");
-                                Utils.SetClipboardText(link);
-                                Utils.ShowNotification("ratted.systems", "copied upload url to clipboard!");
-                                Emi.Info("File URL: " + link + " (copied to clipboard)");
-                            }
-                            else
-                            {
-                                Emi.Error("Socket file upload failed.");
-                                Utils.ShowNotification("ratted.systems", "socket file upload failed.");
-                            }
-                        } catch (Exception ex)
-                        {
-                            Utils.ShowNotification("ratted.systems", "socket file upload failed: " + ex.Message);
-                            Emi.Error("An error occurred during socket file upload: " + ex);
-                        }
-                    } else
-                    {
-                        var reply = await Api.UploadFileAsync(@event.FullPath);
-
-                        if (reply.Success)
-                        {
-
-                            Emi.Info("File uploaded successfully!");
-                            Utils.SetClipboardText(reply.Resource ?? "");
-                            Utils.ShowNotification("ratted.systems", "copied upload url to clipboard!");
-                            Emi.Info("File URL: " + reply.Resource + " (copied to clipboard)");
-                            // TODO: Delay each upload by a second
-                        }
-                        else
-                        {
-                            Emi.Error("File upload failed: " + reply.Message);
-                            Utils.ShowNotification("ratted.systems", "file upload failed: " + reply.Message);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Utils.ShowNotification("ratted.systems", "file upload failed: " + ex.Message);
-                    Emi.Error("An error occurred during file upload: " + ex);
-                }
-            });
-        };*/
-        
-        watcher.OnRenamed += (sender, @event) =>
-        {
-            Emi.Info($"File Renamed: {@event.OldFullPath} to {@event.FullPath}");
-        };
-        
-        watcher.OnDeleted += (sender, @event) =>
-        {
-            Emi.Info($"File Deleted: {@event.FullPath}");
-        };
         
         watcher.OnCreated += (sender, @event) =>
         {
@@ -254,7 +160,7 @@ public class ServiceRunner
         Task.Delay(-1).Wait();
     }
 
-    public static void ManageService(string action)
+    public void ManageService(string action)
     {
         try
         {

@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using RattedSystemsCli.Utilities.Services;
+using RattedSystemsCli.Utilities.Services.ServiceUtils;
 
 #pragma warning disable CS0618 // Type or member is obsolete
 

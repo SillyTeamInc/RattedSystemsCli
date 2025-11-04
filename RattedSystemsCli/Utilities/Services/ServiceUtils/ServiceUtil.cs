@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace RattedSystemsCli.Utilities.Services;
+namespace RattedSystemsCli.Utilities.Services.ServiceUtils;
 
 public static class ServiceUtil
 {
@@ -74,37 +74,5 @@ public static class ServiceUtil
         }
 
         _impl.CheckServiceStatus();
-    }
-}
-
-public interface IServiceUtil
-{
-    bool IsServiceInstalled();
-    bool IsServiceRunning();
-    void InstallService();
-    void UninstallService();
-    void StartService();
-    void StopService();
-    void RestartService();
-    void CheckServiceStatus();
-}
-
-public class UnsupportedServiceUtil : IServiceUtil
-{
-    private void Throw() => throw new PlatformNotSupportedException("The ratted.systems watcher service is only supported on Linux.");
-
-    public bool IsServiceInstalled() => ThrowBool();
-    public bool IsServiceRunning() => ThrowBool();
-    public void InstallService() => Throw();
-    public void UninstallService() => Throw();
-    public void StartService() => Throw();
-    public void StopService() => Throw();
-    public void RestartService() => Throw();
-    public void CheckServiceStatus() => Throw();
-
-    private bool ThrowBool()
-    {
-        Throw();
-        return false;
     }
 }

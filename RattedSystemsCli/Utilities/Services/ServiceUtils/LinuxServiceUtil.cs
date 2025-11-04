@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace RattedSystemsCli.Utilities.Services;
+namespace RattedSystemsCli.Utilities.Services.ServiceUtils;
 
 public class LinuxServiceUtil : IServiceUtil
 {

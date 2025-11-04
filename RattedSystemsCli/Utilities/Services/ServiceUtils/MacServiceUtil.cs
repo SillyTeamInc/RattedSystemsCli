@@ -1,7 +1,7 @@
-namespace RattedSystemsCli.Utilities.Services;
-
 using System.Diagnostics;
 using System.Xml.Linq;
+
+namespace RattedSystemsCli.Utilities.Services.ServiceUtils;
 
 public class MacServiceUtil : IServiceUtil
 {
