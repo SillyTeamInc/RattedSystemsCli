@@ -112,7 +112,7 @@ public class UpdateChecker
         else if (OperatingSystem.IsMacOS()) assetName = "RattedSystemsCli.macos";
         else if (OperatingSystem.IsWindows()) assetName = "RattedSystemsCli.exe"; 
         
-        var asset = updateInfo.Assets.FirstOrDefault(a => a.Name.Equals(executablePath, StringComparison.OrdinalIgnoreCase));
+        var asset = updateInfo.Assets.FirstOrDefault(a => a.Name.Equals(assetName, StringComparison.OrdinalIgnoreCase));
         if (asset == null)
         {
             throw new Exception("No suitable asset found for the current platform.");
