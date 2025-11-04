@@ -42,7 +42,7 @@ jobs:
         with:
           dotnet-version: 9.0.x
       - name: Publish Linux
-        run: dotnet publish -c Release -r linux-x64 --self-contained true -o publish/linux -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+        run: dotnet publish -c Release -r linux-x64 --self-contained true -o publish/linux -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:IncludeAllContentForSelfExtract=true
       - name: Rename Linux PDBs
         run: |
           for f in publish/linux/*.pdb; do
@@ -67,7 +67,7 @@ jobs:
         with:
           dotnet-version: 9.0.x
       - name: Publish Windows
-        run: dotnet publish -c Release -r win-x64 --self-contained true -o publish/windows -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+        run: dotnet publish -c Release -r win-x64 --self-contained true -o publish/windows -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:IncludeAllContentForSelfExtract=true
       - name: Rename Windows PDBs
         shell: pwsh
         run: |
@@ -93,7 +93,7 @@ jobs:
         with:
           dotnet-version: 9.0.x
       - name: Publish MacOS
-        run: dotnet publish -c Release -r osx-x64 --self-contained true -o publish/macos -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+        run: dotnet publish -c Release -r osx-x64 --self-contained true -o publish/macos -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:IncludeAllContentForSelfExtract=true
       - name: Rename MacOS PDBs
         run: |
           for f in publish/macos/*.pdb; do
