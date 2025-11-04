@@ -126,7 +126,7 @@ public class UpdateChecker
 
         try
         {
-            if (OperatingSystem.IsLinux())
+            if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
             {
                 await Process.Start("chmod", $"+x \"{tempFilePath}\"").WaitForExitAsync();
             }

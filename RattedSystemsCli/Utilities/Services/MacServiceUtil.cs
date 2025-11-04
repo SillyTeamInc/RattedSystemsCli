@@ -131,6 +131,11 @@ public class MacServiceUtil : IServiceUtil
         if (!IsServiceInstalled())
             throw new EmiException("Service is not installed.");
 
+        if (IsServiceRunning())
+            throw new EmiException("Service is already running.");
+        
+        
+        SetAutoRestart(true);
         RunLaunchCtl($"start {ServiceName}", throwOnError: false);
     }
 
@@ -139,6 +144,8 @@ public class MacServiceUtil : IServiceUtil
         if (!IsServiceInstalled())
             throw new EmiException("Service is not installed.");
 
+        
+        SetAutoRestart(false);
         RunLaunchCtl($"stop {ServiceName}", throwOnError: false);
     }
 
@@ -149,5 +156,22 @@ public class MacServiceUtil : IServiceUtil
 
         StopService();
         StartService();
+    }
+    
+    private void SetAutoRestart(bool enable)
+    {
+        var plist = XDocument.Load(PlistFilePath);
+        var keepAliveElement = plist.Root?.Element("dict")?
+            .Elements("key")
+            .FirstOrDefault(e => e.Value == "KeepAlive")?
+            .NextNode as XElement;
+
+        if (keepAliveElement != null)
+        {
+            keepAliveElement.ReplaceWith(new XElement(enable ? "true" : "false"));
+            plist.Save(PlistFilePath);
+            RunLaunchCtl($"unload {PlistFilePath}", throwOnError: false);
+            RunLaunchCtl($"load {PlistFilePath}", throwOnError: false);
+        }
     }
 }
