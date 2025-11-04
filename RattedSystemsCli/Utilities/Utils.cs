@@ -170,9 +170,14 @@ public static class Utils
         {
             if (OperatingSystem.IsLinux())
             { 
+                Emi.Debug("Showing notification: " + title + " - " + message);
                 Process.Start("notify-send", $"--app-name \"ratted.systems\" \"{title}\" \"{message}\"").WaitForExit();
             }
-            else Notifications.ShowNotification(title, message);
+            else
+            {
+                Emi.Debug("[Compat] Showing notification: " + title + " - " + message);
+                Notifications.ShowNotification(title, message);
+            }
             
         }
         catch (PlatformNotSupportedException)
@@ -209,6 +214,13 @@ public static class Utils
 
     public static string GetUserAgent()
     {
+        if (OperatingSystem.IsMacOS())
+        {
+            string osMac = "MacOSX/" + Environment.OSVersion.Version;
+            string versionMac = UpdateChecker.GetCurrentTag()[1..];
+            return $"RattedSystemsCli/{versionMac} (+https://ratted.systems/) {osMac}";
+        }
+        
         string os = System.Runtime.InteropServices.RuntimeInformation.OSDescription.Trim();
         string version = UpdateChecker.GetCurrentTag()[1..];
         return $"RattedSystemsCli/{version} (+https://ratted.systems/) {os}";

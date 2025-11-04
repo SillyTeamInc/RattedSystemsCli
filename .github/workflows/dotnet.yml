@@ -48,6 +48,9 @@ jobs:
           for f in publish/linux/*.pdb; do
             mv "$f" "${f%.pdb}.linux.pdb"
           done
+      - name: Rename Linux Executable
+        run: |
+          mv publish/linux/RattedSystemsCli publish/linux/RattedSystemsCli.linux
       - name: Upload Linux Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -80,9 +83,38 @@ jobs:
           name: windows-build
           path: publish/windows/
           retention-days: 1
+          
+  publish-mac:
+    needs: build-test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+      - name: Publish MacOS
+        run: dotnet publish -c Release -r osx-x64 --self-contained true -o publish/macos -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+      - name: Rename MacOS PDBs
+        run: |
+          for f in publish/macos/*.pdb; do
+            mv "$f" "${f%.pdb}.macos.pdb"
+          done
+      #Rename the executable RattedSystemsCli to be RattedSystemsCli.macos
+      - name: Rename MacOS Executable
+        run: |
+          mv publish/macos/RattedSystemsCli publish/macos/RattedSystemsCli.macos
+      - name: Upload MacOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: publish/macos/
+            retention-days: 1
 
   release:
-    needs: [publish-linux, publish-windows]
+    needs: [publish-linux, publish-windows, publish-mac]
     runs-on: ubuntu-latest
     steps:
       - name: Download Linux Artifact
@@ -95,6 +127,11 @@ jobs:
         with:
           name: windows-build
           path: release/windows
+      - name: Download MacOS Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-build
+          path: release/macos
       - name: Remove License Files
         run: |
            find release/ -type f -name "*.md" -delete
@@ -106,5 +143,6 @@ jobs:
           files: |
             release/linux/**
             release/windows/**
+            release/macos/**
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

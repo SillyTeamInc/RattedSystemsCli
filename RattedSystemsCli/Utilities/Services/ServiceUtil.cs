@@ -6,6 +6,8 @@ public static class ServiceUtil
 {
     private static bool IsWindows => RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
     private static bool IsLinux => RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
+    
+    private static bool IsMacOs => RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
 
     private static IServiceUtil _impl;
 
@@ -14,6 +16,10 @@ public static class ServiceUtil
         if (IsLinux)
         {
             _impl = new LinuxServiceUtil();
+        }
+        else if (IsMacOs)
+        {
+            _impl = new MacServiceUtil();
         }
         else 
         {

@@ -104,6 +104,8 @@ public class FileActions
                 Emi.Error("Invalid upload method specified: " + uploadMethod);
                 Environment.ExitCode = 1;
             }
+            
+            Environment.Exit(Environment.ExitCode);
         }
         catch (Exception ex)
         {
