@@ -150,7 +150,7 @@ public static class Utils
             }
             else if (OperatingSystem.IsMacOS())
             {
-                Process.Start("osascript", $"-e 'display notification \"{message.Replace("\"", "\\\"")}\" with title \"{title.Replace("\"", "\\\"")}\" subtitle \"ratted.systems\"'").WaitForExit();
+                Process.Start("osascript", $"-e 'display notification \"{message.Replace("\"", "\\\"")}\" with title \"{title.Replace("\"", "\\\"")}\"").WaitForExit();
             } 
             else
             { 
