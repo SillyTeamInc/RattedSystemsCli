@@ -9,7 +9,7 @@ namespace RattedSystemsCli.Utilities.Services.ServiceRunners;
 
 public class DefaultServiceRunner : IServiceRunner
 {
-    public void RunAsService()
+    public async Task RunAsService()
     {
         Notifications.BundleIdentifier = "RattedSystemsCli";
         Notifications.SetGuiApplication(false); 
@@ -148,7 +148,7 @@ public class DefaultServiceRunner : IServiceRunner
         Task.Delay(-1).Wait();
     }
 
-    public void ManageService(string action)
+    public async Task ManageService(string action)
     {
         try
         {

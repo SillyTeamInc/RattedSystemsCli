@@ -166,6 +166,5 @@ class Program
         }
         
         builder.Execute(pargs);
-        return;
     }
 }

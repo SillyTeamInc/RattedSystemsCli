@@ -48,36 +48,6 @@ public static class Utils
         return sb.ToString();
     }
 
-    public static async Task<HttpResponseState> GetResponseStateAsync(this HttpListenerResponse response)
-    {
-#if WINDOWS
-        FieldInfo? field =
- typeof(HttpListenerResponse).GetField("_responseState", BindingFlags.NonPublic | BindingFlags.Instance);
-        if (field == null)
-        {
-            throw new InvalidOperationException("Could not find the _responseState field in HttpListenerResponse.");
-        }
-
-        // Get the value of the _responseState field
-        object? responseState = field.GetValue(response);
-        if (responseState == null)
-        {
-            throw new InvalidOperationException("The _responseState field in HttpListenerResponse is null.");
-        }
-        
-        // Cast the value to HttpResponseState
-        return (HttpResponseState)responseState;
-#else
-
-        // use a different method to get the response state
-        var state = HttpResponseState.Created;
-        if (response.KeepAlive) state = HttpResponseState.ComputedHeaders;
-        else state = HttpResponseState.Closed;
-
-        return state;
-#endif
-    }
-
     public static StackFrame GetCallerFrame(int skipFrames = 2)
     {
         var stackTrace = new StackTrace(true);
@@ -168,21 +138,31 @@ public static class Utils
     {
         try
         {
+            // TODO: Probably make my own notification library;
+            //       OsNotifications isn't really good...
+            //       On MacOS, only showing the first notification works
+            //       then after the first notification, it hangs and uses
+            //       100% of the thread it's running on.
             if (OperatingSystem.IsLinux())
             { 
                 Emi.Debug("Showing notification: " + title + " - " + message);
                 Process.Start("notify-send", $"--app-name \"ratted.systems\" \"{title}\" \"{message}\"").WaitForExit();
             }
-            else
+            else if (OperatingSystem.IsMacOS())
             {
-                Emi.Debug("[Compat] Showing notification: " + title + " - " + message);
+                Process.Start("osascript", $"-e 'display notification \"{message.Replace("\"", "\\\"")}\" with title \"{title.Replace("\"", "\\\"")}\" subtitle \"ratted.systems\"'").WaitForExit();
+            } 
+            else
+            { 
+                // the windows implementation seems to work fine, but who knows
+                // maybe it breaks in the future knowing my luck and the state of Windows.
                 Notifications.ShowNotification(title, message);
             }
             
         }
         catch (PlatformNotSupportedException)
         {
-            // Ignore on unsupported platforms
+            
         }
         catch (Exception ex)
         {

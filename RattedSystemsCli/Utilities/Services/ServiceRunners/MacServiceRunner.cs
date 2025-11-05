@@ -9,9 +9,9 @@ namespace RattedSystemsCli.Utilities.Services.ServiceRunners;
 
 public class MacServiceRunner : IServiceRunner
 {
-    public void RunAsService()
+    public async Task RunAsService()
     {
-        Notifications.BundleIdentifier = "RattedSystemsCli";
+        Notifications.BundleIdentifier = "com.apple.finder";
         Notifications.SetGuiApplication(false); 
         Utils.ShowNotification("ratted.systems", "service started and running in the background.");
         
@@ -160,7 +160,7 @@ public class MacServiceRunner : IServiceRunner
         Task.Delay(-1).Wait();
     }
 
-    public void ManageService(string action)
+    public async Task ManageService(string action)
     {
         try
         {

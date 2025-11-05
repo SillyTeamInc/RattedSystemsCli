@@ -2,8 +2,6 @@ namespace RattedSystemsCli.Utilities.Services.ServiceUtils;
 
 public class UnsupportedServiceUtil : IServiceUtil
 {
-    private void Throw() => throw new PlatformNotSupportedException("The ratted.systems watcher service is only supported on Linux.");
-
     public bool IsServiceInstalled() => ThrowBool();
     public bool IsServiceRunning() => ThrowBool();
     public void InstallService() => Throw();
@@ -18,4 +16,7 @@ public class UnsupportedServiceUtil : IServiceUtil
         Throw();
         return false;
     }
+    
+    private void Throw() => throw new PlatformNotSupportedException("The ratted.systems watcher service is only supported on Linux and MacOS.\n" +
+                                                                    "Want this to change? Open an issue on the GitHub or join the discord and let me know!");
 }

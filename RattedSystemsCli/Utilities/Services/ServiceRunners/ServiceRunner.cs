@@ -14,17 +14,16 @@ public static class ServiceRunner
     {
         if (OperatingSystem.IsMacOS()) Runner = new MacServiceRunner();
         else Runner = new DefaultServiceRunner();
-        
     }
     
-    public static void RunAsService()
+    public static async Task RunAsService()
     {
         Emi.Info("Using IServiceRunner " + Runner.GetType().Name);
-        Runner.RunAsService();
+        await Runner.RunAsService();
     }
 
-    public static void ManageService(string action)
+    public static async Task ManageService(string action)
     {
-        Runner.ManageService(action);
+        await Runner.ManageService(action);
     }
 }

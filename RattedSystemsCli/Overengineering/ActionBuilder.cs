@@ -18,7 +18,8 @@ public class ActionBuilder
         {
             if (type.GetCustomAttribute<ActionerAttribute>() == null)
                 continue;
-
+            // todo: consider if methods should be async
+            
             var methods = type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
 
             foreach (var method in methods)
