@@ -3,8 +3,10 @@ using System.Diagnostics;
 using System.Net;
 using System.Text;
 using OsNotifications;
+using RattedSystemsCli.Utilities.Config;
 using RattedSystemsCli.Utilities.Github;
 using TextCopy;
+
 
 namespace RattedSystemsCli.Utilities;
 
@@ -168,7 +170,43 @@ public static class Utils
         {
             Emi.Error("Failed to show notification: " + ex);
         }
-    } 
+    }
+
+
+    public static void PlaySound(string file)
+    {
+        try
+        {
+            if (OperatingSystem.IsMacOS())
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "afplay",
+                    Arguments = $"\"{file}\"",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                })!.WaitForExit();
+            }
+            else
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "ffplay",
+                    Arguments = $"-nodisp -autoexit \"{file}\"",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                })!.WaitForExit();
+            }
+        }
+        catch (Exception ex)
+        {
+            Emi.Error("Failed to play sound: " + ex);
+        }
+    }
 
     public static string RelativeTimeSpan(TimeSpan relative)
     {
@@ -216,6 +254,24 @@ public static class Utils
         if (client.DefaultRequestHeaders.UserAgent.ToString() != GetUserAgent())
         {
             client.DefaultRequestHeaders.UserAgent.ParseAdd(GetUserAgent());
+        }
+    }
+
+    public static void PlayUploadSuccess()
+    {
+        string successFile = ConfigManager.CurrentServiceConfig?.UploadSuccessSound ?? "";
+        if (!string.IsNullOrWhiteSpace(successFile) && File.Exists(successFile))
+        {
+            PlaySound(successFile);
+        }
+    }
+
+    public static void PlayUploadFailure()
+    {
+        string failureFile = ConfigManager.CurrentServiceConfig?.UploadFailureSound ?? "";
+        if (!string.IsNullOrWhiteSpace(failureFile) && File.Exists(failureFile))
+        {
+            PlaySound(failureFile);
         }
     }
 }

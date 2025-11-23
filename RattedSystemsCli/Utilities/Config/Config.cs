@@ -137,4 +137,8 @@ public class ServiceConfig
     public string FileFilter { get; set; } = "*.*";
     [JsonPropertyName("debounce_milliseconds")]
     public int DebounceMilliseconds { get; set; } = 500;
+    [JsonPropertyName("upload_success_sound")]
+    public string UploadSuccessSound { get; set; } = "";
+    [JsonPropertyName("upload_failure_sound")]
+    public string UploadFailureSound { get; set; } = "";
 }

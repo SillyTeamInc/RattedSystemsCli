@@ -83,12 +83,14 @@ public class DefaultServiceRunner : IServiceRunner
                             {
                                 Emi.Info("File uploaded successfully via socket uploader!");
                                 Utils.SetClipboardText(link);
+                                Utils.PlayUploadSuccess();
                                 Utils.ShowNotification("ratted.systems", "copied upload url to clipboard!");
                                 Emi.Info("File URL: " + link + " (copied to clipboard)");
                             }
                             else
                             {
                                 Emi.Error("Socket file upload failed.");
+                                Utils.PlayUploadFailure();
                                 Utils.ShowNotification("ratted.systems", "socket file upload failed.");
                             }
                         } catch (Exception ex)
@@ -102,9 +104,9 @@ public class DefaultServiceRunner : IServiceRunner
 
                         if (reply.Success)
                         {
-
                             Emi.Info("File uploaded successfully!");
                             Utils.SetClipboardText(reply.Resource ?? "");
+                            Utils.PlayUploadSuccess();
                             Utils.ShowNotification("ratted.systems", "copied upload url to clipboard!");
                             Emi.Info("File URL: " + reply.Resource + " (copied to clipboard)");
                             // TODO: Delay each upload by a second
@@ -112,6 +114,7 @@ public class DefaultServiceRunner : IServiceRunner
                         else
                         {
                             Emi.Error("File upload failed: " + reply.Message);
+                            Utils.PlayUploadFailure();
                             Utils.ShowNotification("ratted.systems", "file upload failed: " + reply.Message);
                         }
                     }
