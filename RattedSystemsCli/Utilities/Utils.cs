@@ -115,13 +115,7 @@ public static class Utils
 
                 using var process = Process.Start(psi);
                 process!.WaitForExit(5000);
-                
-                string error = process.StandardError.ReadToEnd();
-                if (!string.IsNullOrWhiteSpace(error))
-                {
-                    ShowNotification("ratted.systems", "Clipboard tool error: " + error);
-                    Emi.Warn("Clipboard tool error: " + error);
-                }
+
 
                 return;
             }
