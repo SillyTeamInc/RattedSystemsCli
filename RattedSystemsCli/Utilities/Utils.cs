@@ -81,7 +81,7 @@ public static class Utils
                     psi = new ProcessStartInfo
                     {
                         FileName = "sh",
-                        Arguments = $"-c \"echo '{text.Replace("'", "'\\''")}' | wl-copy\"",
+                        Arguments = $"-c \"printf '%s' '{text.Replace("'", "'\\''")}' | wl-copy\"",
                         RedirectStandardOutput = true,
                         RedirectStandardError = true,
                         UseShellExecute = false,
@@ -93,7 +93,7 @@ public static class Utils
                     psi = new ProcessStartInfo
                     {
                         FileName = "sh",
-                        Arguments = $"-c \"echo '{text.Replace("'", "'\\''")}' | xsel -i --clipboard\"",
+                        Arguments = $"-c \"printf '%s' '{text.Replace("'", "'\\''")}' | xsel -i --clipboard\"",
                         RedirectStandardOutput = true,
                         RedirectStandardError = true,
                         UseShellExecute = false,
@@ -112,14 +112,13 @@ public static class Utils
                     psi = new ProcessStartInfo
                     {
                         FileName = "sh",
-                        Arguments = $"-c \"echo '{text.Replace("'", "'\\''")}' | xclip -selection clipboard\"",
+                        Arguments = $"-c \"printf '%s' '{text.Replace("'", "'\\''")}' | xclip -selection clipboard\"",
                         RedirectStandardOutput = true,
                         RedirectStandardError = true,
                         UseShellExecute = false,
                         CreateNoWindow = true
                     };
                 }
-
                 using var process = Process.Start(psi);
                 process!.WaitForExit(5000);
 
