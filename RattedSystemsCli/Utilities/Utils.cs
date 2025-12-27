@@ -58,6 +58,13 @@ public static class Utils
         return frame;
     }
 
+    public static void SetClipboardTemplated(string template, string url)
+    {
+        // currently only doing this because nothing else is templated
+        string text = template.Replace("{url}", url);
+        SetClipboardText(text);
+    }
+
     public static void SetClipboardText(string text)
     {
         try

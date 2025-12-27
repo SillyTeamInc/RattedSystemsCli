@@ -82,7 +82,7 @@ public class DefaultServiceRunner : IServiceRunner
                             if (!string.IsNullOrWhiteSpace(link))
                             {
                                 Emi.Info("File uploaded successfully via socket uploader!");
-                                Utils.SetClipboardText(link);
+                                Utils.SetClipboardTemplated(config?.ClipboardCopyTemplate ?? "{link}", link);
                                 Utils.PlayUploadSuccess();
                                 Utils.ShowNotification("ratted.systems", "copied upload url to clipboard!");
                                 Emi.Info("File URL: " + link + " (copied to clipboard)");
@@ -105,7 +105,7 @@ public class DefaultServiceRunner : IServiceRunner
                         if (reply.Success)
                         {
                             Emi.Info("File uploaded successfully!");
-                            Utils.SetClipboardText(reply.Resource ?? "");
+                            Utils.SetClipboardTemplated(config?.ClipboardCopyTemplate ?? "{link}", reply.Resource);
                             Utils.PlayUploadSuccess();
                             Utils.ShowNotification("ratted.systems", "copied upload url to clipboard!");
                             Emi.Info("File URL: " + reply.Resource + " (copied to clipboard)");

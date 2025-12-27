@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using FileWatcherEx;
+using RattedSystemsCli.Utilities.Github;
 
 namespace RattedSystemsCli.Utilities.Config;
 
@@ -38,6 +39,7 @@ public class ConfigManager
         {
             CurrentServiceConfig = JsonSerializer.Deserialize<ServiceConfig>(json);
             CurrentServiceConfig = ConvertConfigPaths(CurrentServiceConfig ?? new ServiceConfig());
+            UpdateConfig(CurrentServiceConfig);
         }
         catch (Exception ex)
         {
@@ -55,6 +57,50 @@ public class ConfigManager
             WriteIndented = true
         });
         File.WriteAllText(path, json);
+    }
+    
+    public static void UpdateConfig(ServiceConfig outdatedConfig)
+    {
+        string? oldVersion = outdatedConfig.CliVersionDoNotModify;
+        string currentVersion = UpdateChecker.GetCurrentTag();
+        if (oldVersion == currentVersion)
+        {
+            Emi.Info("Service config is up to date. No update needed.");
+            return;
+        }
+        
+        Emi.Info($"Updating service config from version {oldVersion} to {currentVersion}...");
+        
+        var defaultConfig = new ServiceConfig();
+        bool updated = false;
+        var outdatedConfigType = typeof(ServiceConfig);
+        var defaultConfigType = typeof(ServiceConfig);
+        
+        foreach (var prop in defaultConfigType.GetProperties())
+        {
+            var outdatedProp = outdatedConfigType.GetProperty(prop.Name);
+            if (outdatedProp == null) continue;
+            var outdatedValue = outdatedProp.GetValue(outdatedConfig);
+            var defaultValue = prop.GetValue(defaultConfig);
+            if (outdatedValue == null || (outdatedValue is string str && string.IsNullOrWhiteSpace(str)))
+            {
+                outdatedProp.SetValue(outdatedConfig, defaultValue);
+                updated = true;
+                Emi.Info($"Added missing config field '{prop.Name}' with default value.");
+            }
+        }
+        
+        outdatedConfig.CliVersionDoNotModify = currentVersion;
+        if (updated)   
+        {
+            CurrentServiceConfig = outdatedConfig;
+            SaveServiceConfig();
+            Emi.Info("Service config updated successfully.");
+        }
+        else
+        {
+            Emi.Info("No updates were necessary for the service config.");
+        }
     }
 
     private static string ConvertPath(string path)
@@ -127,6 +173,8 @@ public class ConfigManager
 
 public class ServiceConfig
 {
+    [JsonPropertyName("cli_version_do_not_modify")]
+    public string CliVersionDoNotModify { get; set; } = "";
     [JsonPropertyName("token_file_path")]
     public string TokenFilePath { get; set; } = "default";
     [JsonPropertyName("watch_directory")]
@@ -135,10 +183,10 @@ public class ServiceConfig
     public bool IncludeSubdirectories { get; set; } = true;
     [JsonPropertyName("file_filter")]
     public string FileFilter { get; set; } = "*.*";
-    [JsonPropertyName("debounce_milliseconds")]
-    public int DebounceMilliseconds { get; set; } = 500;
     [JsonPropertyName("upload_success_sound")]
     public string UploadSuccessSound { get; set; } = "";
     [JsonPropertyName("upload_failure_sound")]
     public string UploadFailureSound { get; set; } = "";
+    [JsonPropertyName("clipboard_copy_template")]
+    public string ClipboardCopyTemplate { get; set; } = "{url}";
 }
