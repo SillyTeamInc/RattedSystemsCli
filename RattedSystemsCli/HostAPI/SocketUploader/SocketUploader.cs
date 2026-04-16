@@ -19,17 +19,17 @@ public class SocketUploader
     public async Task ConnectAsync()
     {
         var client = new ClientWebSocket();
-        Emi.Info("Connecting to socket uploader...");
+        //Emi.Info("Connecting to socket uploader...");
         client.Options.SetRequestHeader("User-Agent", Utils.GetUserAgent());
         var uri = new Uri($"wss://{Domain}{UploadEndpoint}");
         await client.ConnectAsync(uri, CancellationToken.None);
         WebSocketClient = client;
-        Emi.Info("Connected to socket uploader.");
+        //Emi.Info("Connected to socket uploader.");
     }
     
     public async Task AuthenticateAsync(string token)
     {
-        Emi.Info("Authenticating socket uploader...");
+        //Emi.Info("Authenticating socket uploader...");
         await SendOp("auth", token);
         var nextOp = await ReceiveNextOp(5000); 
         if (!nextOp.GetDataProperty<bool>("success"))
@@ -39,8 +39,8 @@ public class SocketUploader
             throw new Exception("Socket authentication failed: " + message);
         }
         
-        Emi.Debug("AuthResult: " + nextOp.GetDataProperty<string>("message"));
-        Emi.Info("Socket uploader authenticated.");
+        //Emi.Debug("AuthResult: " + nextOp.GetDataProperty<string>("message"));
+        //Emi.Info("Socket uploader authenticated.");
     }
     
     public async Task<long> SolveProofOfWorkAsync(string challenge, int difficulty, CancellationToken cancellationToken = default)
@@ -99,10 +99,10 @@ public class SocketUploader
         
         string challenge = response.GetDataProperty<string>("challenge") ?? "";
         int difficulty = response.GetDataProperty<int>("difficulty");
-        Emi.Debug($"Received proof-of-work challenge: {challenge} with difficulty {difficulty}");
+        //Emi.Debug($"Received proof-of-work challenge: {challenge} with difficulty {difficulty}");
         
         long nonce = await uploader.SolveProofOfWorkAsync(challenge, difficulty);
-        Emi.Debug($"Solved proof-of-work with nonce: {nonce}");
+        //Emi.Debug($"Solved proof-of-work with nonce: {nonce}");
         
         await uploader.SendOp("pow_solution", new {
             nonce = nonce
@@ -118,12 +118,9 @@ public class SocketUploader
             throw new Exception("Upload initiation failed: " + message);
         }
         
-        Emi.Debug("Upload started: " + message);
         string oneTimeUploadToken = uploadStart?.GetDataProperty<string>("oneTimeUploadToken") ?? "";
         int chunkSize = uploadStart?.GetDataProperty<int>("chunkSize") ?? 1024 * 1024;
         
-        Emi.Debug($"Uploading file in chunks of size: {chunkSize} bytes");
-
         string fileHash = "no"; // TODO: Implement if needed later
         
         string header = $"FILEUPLOAD_{oneTimeUploadToken}||{fileHash}>>";
