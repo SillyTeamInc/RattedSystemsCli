@@ -74,7 +74,7 @@ public class SocketUploader
         
         await using var progress = (CompositeProgressBackend)EmniFactory.Create();
 
-        await progress.StartAsync("Uploading", Path.GetFileName(filePath), "RattedSystemsCli", "document-send");
+        await progress.StartAsync("Uploading", Path.GetFileName(filePath), "ratted.systems", "document-send");
 
         await progress.UpdateAsync(0, "Connecting...");
         await uploader.ConnectAsync();

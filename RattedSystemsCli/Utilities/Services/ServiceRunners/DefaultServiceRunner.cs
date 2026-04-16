@@ -1,3 +1,4 @@
+using EmniProgress.Providers;
 using FileWatcherEx;
 using OsNotifications;
 using RattedSystemsCli.HostAPI;
@@ -93,7 +94,8 @@ public class DefaultServiceRunner : IServiceRunner
                                 Emi.Info("File uploaded successfully via socket uploader!");
                                 Utils.SetClipboardTemplated(config?.ClipboardCopyTemplate ?? "{link}", link);
                                 Utils.PlayUploadSuccess();
-                                Utils.ShowNotification("ratted.systems", "copied upload url to clipboard!");
+                                if (!OperatingSystem.IsLinux() || !new KdeProgressBackendProvider().IsAvailable()) 
+                                    Utils.ShowNotification("ratted.systems", "copied upload url to clipboard!");
                                 Emi.Info("File URL: " + link + " (copied to clipboard)");
                             }
                             else
@@ -116,7 +118,8 @@ public class DefaultServiceRunner : IServiceRunner
                             Emi.Info("File uploaded successfully!");
                             Utils.SetClipboardTemplated(config?.ClipboardCopyTemplate ?? "{link}", reply.Resource);
                             Utils.PlayUploadSuccess();
-                            Utils.ShowNotification("ratted.systems", "copied upload url to clipboard!");
+                            if (!OperatingSystem.IsLinux() || !new KdeProgressBackendProvider().IsAvailable()) 
+                                Utils.ShowNotification("ratted.systems", "copied upload url to clipboard!");
                             Emi.Info("File URL: " + reply.Resource + " (copied to clipboard)");
                             // TODO: Delay each upload by a second
                         }

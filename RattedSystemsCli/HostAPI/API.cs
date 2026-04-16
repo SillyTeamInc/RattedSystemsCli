@@ -176,7 +176,7 @@ public class Api
 
         AddAuthorizationHeader(token);
 
-        await progress.StartAsync("Uploading", Path.GetFileName(filePath), "RattedSystemsCli", "document-send");
+        await progress.StartAsync("Uploading", Path.GetFileName(filePath), "ratted.systems", "document-send");
         var response = await HttpClient.PostAsync(UploadEndpoint, content);
         var kde = progress.GetBackend<KdeProgressBackend>();
         if (kde != null)
