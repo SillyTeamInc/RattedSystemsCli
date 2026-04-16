@@ -26,16 +26,7 @@ public class FileActions
         {
             // Check if the file is more than (-1) of 100 MB
             var fileInfo = new FileInfo(filePath);
-            if (fileInfo.Length > 100 * 1000 * 1000)
-            {
-                uploadMethod = "socket";
-                Emi.Info("File is larger than 100 MB, using socket upload method.");
-            }
-            else
-            {
-                uploadMethod = "post";
-            }
-                
+            uploadMethod = fileInfo.Length > 100 * 1000 * 1000 ? "socket" : "post";
         }
         
         // TODO: Abstract this to be more dynamic and less shit
@@ -81,7 +72,13 @@ public class FileActions
                 var uploadTask = SocketUploader.UploadFileAsync(filePath);
                 uploadTask.Wait();
                 var reply = uploadTask.Result;
-
+                if (string.IsNullOrWhiteSpace(reply))
+                {
+                    Emi.Error("Socket file upload failed.");
+                    Environment.ExitCode = 1;
+                    return;
+                }
+                
                 Emi.Info("File uploaded successfully!");
                 Emi.Info("File URL: " + reply);
                 if (pargs.HasFlag("copy-to-clipboard"))

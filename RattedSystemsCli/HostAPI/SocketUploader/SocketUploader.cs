@@ -71,120 +71,136 @@ public class SocketUploader
     {
         Emi.Debug($"Uploading file via socket: {filePath}");
         var uploader = new SocketUploader();
-        
-        await using var progress = (CompositeProgressBackend)EmniFactory.Create();
-
+        CancellationTokenSource cts = new CancellationTokenSource();
+        await using var progress = (CompositeProgressBackend)EmniFactory.Create(); 
+        progress.GetBackend<KdeProgressBackend>()?.OnCancel(() =>
+        {
+            cts.Cancel();
+            return Task.CompletedTask;
+        });
         await progress.StartAsync("Uploading", Path.GetFileName(filePath), "ratted.systems", "document-send");
 
-        await progress.UpdateAsync(0, "Connecting...");
-        await uploader.ConnectAsync();
-        await progress.UpdateAsync(0, "Authenticating...");
-        await uploader.AuthenticateAsync(UploadToken.GetToken() ?? "");
-        
-        string fileName = Path.GetFileName(filePath);
-        long fileSize = new FileInfo(filePath).Length;
-        await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
-        
-        await progress.UpdateAsync(0, "Starting upload...");
-        await uploader.SendOp("start_upload", new {
-            fileName = fileName,
-            fileSize = fileSize
-        });
-        
-        var response = await uploader.ReceiveOp("pow_challenge", 10000);
-        if (response == null)
+        try
         {
-            throw new Exception("Did not receive proof-of-work challenge from server.");
-        }
-        
-        string challenge = response.GetDataProperty<string>("challenge") ?? "";
-        int difficulty = response.GetDataProperty<int>("difficulty");
-        //Emi.Debug($"Received proof-of-work challenge: {challenge} with difficulty {difficulty}");
-        
-        long nonce = await uploader.SolveProofOfWorkAsync(challenge, difficulty);
-        //Emi.Debug($"Solved proof-of-work with nonce: {nonce}");
-        
-        await uploader.SendOp("pow_solution", new {
-            nonce = nonce
-        });
-        
-        var uploadStart = await uploader.ReceiveOp("start_upload", 10000);
-        bool success = uploadStart?.GetDataProperty<bool>("success") ?? false;
-        string message = uploadStart?.GetDataProperty<string>("message") ?? "Unknown error";
-        if (!success)
-        {
-            await progress.UpdateAsync(0, "Upload failed!");
-            await progress.FinishAsync(false, message);
-            throw new Exception("Upload initiation failed: " + message);
-        }
-        
-        string oneTimeUploadToken = uploadStart?.GetDataProperty<string>("oneTimeUploadToken") ?? "";
-        int chunkSize = uploadStart?.GetDataProperty<int>("chunkSize") ?? 1024 * 1024;
-        
-        string fileHash = "no"; // TODO: Implement if needed later
-        
-        string header = $"FILEUPLOAD_{oneTimeUploadToken}||{fileHash}>>";
-        byte[] headerBytes = Encoding.UTF8.GetBytes(header);
-        byte[] buffer = new byte[chunkSize];
-        int bytesRead;
-        
-        await uploader.SendRaw(headerBytes);
-        
-        while ((bytesRead = await fileStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
-        {
-            byte[] chunkData = new byte[bytesRead];
-            Array.Copy(buffer, chunkData, bytesRead);
-            await uploader.SendRaw(chunkData);
-            
-            var chunkResponse = await uploader.ReceiveOp("request_next_chunk", -1);
-            if (chunkResponse == null)
+            await progress.UpdateAsync(0, "Connecting...");
+            await uploader.ConnectAsync();
+            await progress.UpdateAsync(0, "Authenticating...");
+            await uploader.AuthenticateAsync(UploadToken.GetToken() ?? "");
+            cts.Token.ThrowIfCancellationRequested();
+
+            string fileName = Path.GetFileName(filePath);
+            long fileSize = new FileInfo(filePath).Length;
+            await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+
+            await progress.UpdateAsync(0, "Starting upload...");
+            await uploader.SendOp("start_upload", new
+            {
+                fileName = fileName,
+                fileSize = fileSize
+            });
+
+            var response = await uploader.ReceiveOp("pow_challenge", 10000);
+            if (response == null)
+            {
+                throw new Exception("Did not receive proof-of-work challenge from server.");
+            }
+
+            string challenge = response.GetDataProperty<string>("challenge") ?? "";
+            int difficulty = response.GetDataProperty<int>("difficulty");
+            //Emi.Debug($"Received proof-of-work challenge: {challenge} with difficulty {difficulty}");
+
+            long nonce = await uploader.SolveProofOfWorkAsync(challenge, difficulty, cts.Token);
+            //Emi.Debug($"Solved proof-of-work with nonce: {nonce}");
+
+            await uploader.SendOp("pow_solution", new
+            {
+                nonce = nonce
+            });
+            var uploadStart = await uploader.ReceiveOp("start_upload", 10000);
+            bool success = uploadStart?.GetDataProperty<bool>("success") ?? false;
+            string message = uploadStart?.GetDataProperty<string>("message") ?? "Unknown error";
+            if (!success)
             {
                 await progress.UpdateAsync(0, "Upload failed!");
-                await progress.FinishAsync(false, "Did not receive chunk request from server.");
-                throw new Exception("Did not receive chunk request from server.");
+                await progress.FinishAsync(false, message);
+                throw new Exception("Upload initiation failed: " + message);
             }
-            
-            ulong totalReceived = (ulong)chunkResponse.GetDataProperty<long>("totalReceived");
-            ulong totalSize = (ulong)chunkResponse.GetDataProperty<long>("totalSize");
-            double percentage = chunkResponse.GetDataProperty<double>("percentage");
-            double uploadSpeedMbps = chunkResponse.GetDataProperty<double>("uploadSpeedMbps");
-            // Convert uploadSpeedMbps to bytes per second
-            ulong uploadSpeedBps = uploadSpeedMbps > 0 ? (ulong)(uploadSpeedMbps * 1024 * 1024 / 8) : 0;
 
-            if (percentage < 100)
-                await progress.UpdateAsync((float)percentage, $"Uploading");
-            
-            KdeProgressBackend? kde = progress.GetBackend<KdeProgressBackend>();
-            if (kde != null)
+            string oneTimeUploadToken = uploadStart?.GetDataProperty<string>("oneTimeUploadToken") ?? "";
+            int chunkSize = uploadStart?.GetDataProperty<int>("chunkSize") ?? 1024 * 1024;
+
+            string fileHash = "no"; // TODO: Implement if needed later
+
+            string header = $"FILEUPLOAD_{oneTimeUploadToken}||{fileHash}>>";
+            byte[] headerBytes = Encoding.UTF8.GetBytes(header);
+            byte[] buffer = new byte[chunkSize];
+            int bytesRead;
+
+            await uploader.SendRaw(headerBytes);
+
+            while ((bytesRead = await fileStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
             {
-                await kde.SetDestUrlAsync($"https://{uploader.Domain}/");
-                await kde.UpdateSpeedAsync(uploadSpeedBps);
-                await kde.UpdateAmountAsync(totalSize, totalReceived, KdeJobUnit.Bytes);
-                await kde.UpdateDescriptionFieldAsync(1, "Filename", fileName);
+                byte[] chunkData = new byte[bytesRead];
+                Array.Copy(buffer, chunkData, bytesRead);
+                await uploader.SendRaw(chunkData);
+
+                var chunkResponse = await uploader.ReceiveOp("request_next_chunk", -1);
+                if (chunkResponse == null)
+                {
+                    await progress.UpdateAsync(0, "Upload failed!");
+                    await progress.FinishAsync(false, "Did not receive chunk request from server.");
+                    throw new Exception("Did not receive chunk request from server.");
+                }
+
+                ulong totalReceived = (ulong)chunkResponse.GetDataProperty<long>("totalReceived");
+                ulong totalSize = (ulong)chunkResponse.GetDataProperty<long>("totalSize");
+                double percentage = chunkResponse.GetDataProperty<double>("percentage");
+                double uploadSpeedMbps = chunkResponse.GetDataProperty<double>("uploadSpeedMbps");
+                // Convert uploadSpeedMbps to bytes per second
+                ulong uploadSpeedBps = uploadSpeedMbps > 0 ? (ulong)(uploadSpeedMbps * 1024 * 1024 / 8) : 0;
+
+                if (percentage < 100)
+                    await progress.UpdateAsync((float)percentage, $"Uploading");
+
+                KdeProgressBackend? kde = progress.GetBackend<KdeProgressBackend>();
+                if (kde != null)
+                {
+                    await kde.SetDestUrlAsync($"https://{uploader.Domain}/");
+                    await kde.UpdateSpeedAsync(uploadSpeedBps);
+                    await kde.UpdateAmountAsync(totalSize, totalReceived, KdeJobUnit.Bytes);
+                    await kde.UpdateDescriptionFieldAsync(1, "Filename", fileName);
+                }
+                 
+                cts.Token.ThrowIfCancellationRequested();
             }
-        }
-        
-        await Console.Error.WriteLineAsync();
-        
-        var uploadComplete = await uploader.ReceiveOp("upload_complete", 30000);
-        bool uploadSuccess = uploadComplete?.GetDataProperty<bool>("success") ?? false;
-        string uploadMessage = uploadComplete?.GetDataProperty<string>("message") ?? "Unknown error";
-        
-        if (!uploadSuccess)
+
+            await Console.Error.WriteLineAsync();
+
+            var uploadComplete = await uploader.ReceiveOp("upload_complete", 30000);
+            bool uploadSuccess = uploadComplete?.GetDataProperty<bool>("success") ?? false;
+            string uploadMessage = uploadComplete?.GetDataProperty<string>("message") ?? "Unknown error";
+
+            if (!uploadSuccess)
+            {
+                await progress.UpdateAsync(100, "Upload failed!");
+                await progress.FinishAsync(false, uploadMessage);
+                throw new Exception("File upload failed: " + uploadMessage);
+            }
+
+            string uploadLink = uploadComplete?.GetDataProperty<string>("uploadLink") ?? "";
+
+            await progress.UpdateAsync(100, "Upload complete!");
+            await progress.FinishAsync(true, "File uploaded successfully!");
+
+            Emi.Info("File uploaded successfully! Download link: " + uploadLink);
+            await uploader.CloseAsync();
+            return uploadLink;
+        } catch (OperationCanceledException)
         {
-            await progress.UpdateAsync(100, "Upload failed!");
-            await progress.FinishAsync(false, uploadMessage);
-            throw new Exception("File upload failed: " + uploadMessage);
+            await progress.FinishAsync(false, "Upload cancelled!");
+            Emi.Info("Upload cancelled by user.");
+            return null;
         }
-        
-        string uploadLink = uploadComplete?.GetDataProperty<string>("uploadLink") ?? "";
-        
-        await progress.UpdateAsync(100, "Upload complete!");
-        await progress.FinishAsync(true, "File uploaded successfully!");
-        
-        Emi.Info("File uploaded successfully! Download link: " + uploadLink);
-        await uploader.CloseAsync();
-        return uploadLink;
     }
     
     public async Task SendJson(object message)

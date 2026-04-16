@@ -62,14 +62,16 @@ public sealed class ProgressStreamContent : HttpContent
     private readonly long _length;
     private readonly string _fileName;
     private readonly string _destinationUrl;
+    private readonly CancellationToken _cancellationToken;
 
-    public ProgressStreamContent(Stream source, IProgressBackend progress, long length, string fileName, string destinationUrl)
+    public ProgressStreamContent(Stream source, IProgressBackend progress, long length, string fileName, string destinationUrl, CancellationToken cancellationToken = default)
     {
         _source = source;
         _progress = progress;
         _length = length;
         _fileName = fileName;
         _destinationUrl = destinationUrl;
+        _cancellationToken = cancellationToken;
     }
 
     protected override async Task SerializeToStreamAsync(Stream stream, System.Net.TransportContext? context)
@@ -88,9 +90,9 @@ public sealed class ProgressStreamContent : HttpContent
             await kde.UpdateDescriptionFieldAsync(1, "Filename", _fileName);
         }
     
-        while ((read = await _source.ReadAsync(buffer.AsMemory(0, buffer.Length))) > 0)
+        while ((read = await _source.ReadAsync(buffer.AsMemory(0, buffer.Length), _cancellationToken)) > 0)
         {
-            await stream.WriteAsync(buffer.AsMemory(0, read));
+            await stream.WriteAsync(buffer.AsMemory(0, read), _cancellationToken);
             sent += read;
     
             var percent = _length <= 0 ? 100f : sent * 100f / _length;
@@ -109,6 +111,11 @@ public sealed class ProgressStreamContent : HttpContent
                 await _progress.UpdateAsync(percent, "Uploading");
     
             lastPercent = (int)percent;
+
+            if (_cancellationToken.IsCancellationRequested)
+            {
+                _cancellationToken.ThrowIfCancellationRequested();
+            }
         }
     }
 
@@ -152,48 +159,70 @@ public class Api
 
     public static async Task<ApiReply> UploadFileAsync(string filePath, string? token = null)
     {
-        if (!File.Exists(filePath))
-            throw new FileNotFoundException("File not found", filePath);
-
-        if (string.IsNullOrWhiteSpace(token))
-            token = UploadToken.GetToken();
-
-        if (string.IsNullOrWhiteSpace(token))
-            throw new InvalidOperationException("No upload token provided or configured");
-
-        using var content = new MultipartFormDataContent();
+        
         await using var progress = (CompositeProgressBackend)EmniFactory.Create();
-        
-        await using var fileStream = File.OpenRead(filePath);
-        using var fileContent = new ProgressStreamContent(
-            fileStream,
-            progress,
-            fileStream.Length,
-            Path.GetFileName(filePath),
-            new Uri(HttpClient.BaseAddress!, UploadEndpoint).ToString());
-        fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
-        content.Add(fileContent, "file", Path.GetFileName(filePath));
 
-        AddAuthorizationHeader(token);
-
-        await progress.StartAsync("Uploading", Path.GetFileName(filePath), "ratted.systems", "document-send");
-        var response = await HttpClient.PostAsync(UploadEndpoint, content);
-        var kde = progress.GetBackend<KdeProgressBackend>();
-        if (kde != null)
+        try
         {
-            string qualifiedFilePath = Path.GetFullPath(filePath).Replace("\\", "/");
-            await kde.SetDestUrlAsync(qualifiedFilePath);
-            await kde.UpdateSpeedAsync(0);
-            await kde.UpdateAmountAsync((ulong)fileStream.Length, (ulong)fileStream.Length, KdeJobUnit.Bytes);
+            if (!File.Exists(filePath))
+                throw new FileNotFoundException("File not found", filePath);
+
+            if (string.IsNullOrWhiteSpace(token))
+                token = UploadToken.GetToken();
+
+            if (string.IsNullOrWhiteSpace(token))
+                throw new InvalidOperationException("No upload token provided or configured");
+
+            CancellationTokenSource cts = new CancellationTokenSource();
+            
+            using var content = new MultipartFormDataContent();
+            await using var fileStream = File.OpenRead(filePath);
+            using var fileContent = new ProgressStreamContent(
+                fileStream,
+                progress,
+                fileStream.Length,
+                Path.GetFileName(filePath),
+                new Uri(HttpClient.BaseAddress!, UploadEndpoint).ToString(),
+                cts.Token);
+            fileContent.Headers.ContentType =
+                new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+            content.Add(fileContent, "file", Path.GetFileName(filePath));
+            
+
+            AddAuthorizationHeader(token);
+            progress.GetBackend<KdeProgressBackend>()?.OnCancel(() =>
+            {
+                cts.Cancel();         
+                return Task.CompletedTask;
+            });
+            await progress.StartAsync("Uploading", Path.GetFileName(filePath), "ratted.systems", "document-send");
+            var response = await HttpClient.PostAsync(UploadEndpoint, content);
+            var kde = progress.GetBackend<KdeProgressBackend>();
+            if (kde != null)
+            {
+                string qualifiedFilePath = Path.GetFullPath(filePath).Replace("\\", "/");
+                await kde.SetDestUrlAsync(qualifiedFilePath);
+                await kde.UpdateSpeedAsync(0);
+                await kde.UpdateAmountAsync((ulong)fileStream.Length, (ulong)fileStream.Length, KdeJobUnit.Bytes);
+            }
+
+            await progress.UpdateAsync(100, "Uploaded!");
+            await progress.FinishAsync(response.IsSuccessStatusCode,
+                response.IsSuccessStatusCode ? "Upload successful!" : "Upload failed: " + response.ReasonPhrase);
+
+            var responseBody = await response.Content.ReadAsStringAsync();
+            var apiReply = JsonSerializer.Deserialize<ApiReply>(responseBody);
+
+            return apiReply ?? throw new InvalidOperationException("Failed to parse API response");
+        } catch (OperationCanceledException)
+        {
+            progress.FinishAsync(false, "Upload cancelled!").Wait();
+            return new ApiReply
+            {
+                Success = false,
+                Message = "Upload cancelled by user."
+            };
         }
-
-        await progress.UpdateAsync(100, "Uploaded!");
-        await progress.FinishAsync(response.IsSuccessStatusCode, response.IsSuccessStatusCode ? "Upload successful!" : "Upload failed: " + response.ReasonPhrase);
-        
-        var responseBody = await response.Content.ReadAsStringAsync();
-        var apiReply = JsonSerializer.Deserialize<ApiReply>(responseBody);
-
-        return apiReply ?? throw new InvalidOperationException("Failed to parse API response");
     }
 
     public static async Task<ApiUser?> GetCurrentUserAsync(string? token = null)
