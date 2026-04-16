@@ -175,18 +175,38 @@ public class ServiceConfig
 {
     [JsonPropertyName("cli_version_do_not_modify")]
     public string CliVersionDoNotModify { get; set; } = "";
-    [JsonPropertyName("token_file_path")]
-    public string TokenFilePath { get; set; } = "default";
-    [JsonPropertyName("watch_directory")]
-    public string WatchDirectory { get; set; } = "";
+
+    [JsonPropertyName("token_file_path")] public string TokenFilePath { get; set; } = "default";
+    [JsonPropertyName("watch_directory")] public string WatchDirectory { get; set; } = "";
+
     [JsonPropertyName("include_subdirectories")]
     public bool IncludeSubdirectories { get; set; } = true;
-    [JsonPropertyName("file_filter")]
-    public string FileFilter { get; set; } = "*.*";
+
+    [JsonPropertyName("file_filter")] public string FileFilter { get; set; } = "*.*";
+
     [JsonPropertyName("upload_success_sound")]
     public string UploadSuccessSound { get; set; } = "";
+
     [JsonPropertyName("upload_failure_sound")]
     public string UploadFailureSound { get; set; } = "";
+
     [JsonPropertyName("clipboard_copy_template")]
     public string ClipboardCopyTemplate { get; set; } = "{url}";
+
+    // Serialize to anonymous object with json property names
+    public object ToObject()
+    {
+        return new
+        {
+            cli_version_do_not_modify = CliVersionDoNotModify,
+            token_file_path = TokenFilePath,
+            watch_directory = WatchDirectory,
+            include_subdirectories = IncludeSubdirectories,
+            file_filter = FileFilter,
+            upload_success_sound = UploadSuccessSound,
+            upload_failure_sound = UploadFailureSound,
+            clipboard_copy_template = ClipboardCopyTemplate
+        };
+    }
+
 }

@@ -12,8 +12,7 @@ public static class ServiceRunner
     
     static ServiceRunner()
     {
-        if (OperatingSystem.IsMacOS()) Runner = new MacServiceRunner();
-        else Runner = new DefaultServiceRunner();
+        Runner = new DefaultServiceRunner();
     }
     
     public static async Task RunAsService()

@@ -3,6 +3,8 @@ global using Console = ExtendedConsole.Console;
 using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
+using EmniProgress.Backends;
+using EmniProgress.Factory;
 using RattedSystemsCli.Actions;
 using RattedSystemsCli.HostAPI;
 using RattedSystemsCli.HostAPI.SocketUploader;
@@ -26,6 +28,15 @@ class Program
         Console.Config.SetupConsole();
         ActionBuilder builder = new ActionBuilder();
         builder.Build(Assembly.GetExecutingAssembly());
+
+        if (Debugger.IsAttached)
+        {
+            args = new string[]
+            {
+                "--run-as-service",
+            };
+        }
+        
         
         CmdLineParser parser = new CmdLineParser($"ratted.systems cli {UpdateChecker.GetCurrentTag()} ({ThisAssembly.Git.Branch}-{ThisAssembly.Git.Commit})", new CmdArg[]
         {
