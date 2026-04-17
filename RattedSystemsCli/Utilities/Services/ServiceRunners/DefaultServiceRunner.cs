@@ -12,19 +12,29 @@ public class DefaultServiceRunner : IServiceRunner
 {
     public async Task RunAsService()
     {
-        Notifications.BundleIdentifier = "RattedSystemsCli";
-        Notifications.SetGuiApplication(false); 
-        ApiUser? user = await UserUtil.GetServiceUser();
-        if (user == null)
+        try
         {
-            Emi.Error("Failed to authenticate service user. Please ensure your API key is valid.");
-            Utils.ShowNotification("ratted.systems", "failed to authenticate service user, your upload token is invalid.");
-            Environment.ExitCode = 1;
-            return;
+            Notifications.BundleIdentifier = "RattedSystemsCli";
+            Notifications.SetGuiApplication(false);
+            ApiUser? user = await UserUtil.GetServiceUser();
+            if (user == null)
+            {
+                Emi.Error("Failed to authenticate service user. Please ensure your API key is valid.");
+                Utils.ShowNotification("ratted.systems",
+                    "failed to authenticate service user, your upload token is invalid.");
+                Environment.ExitCode = 1;
+                return;
+            }
+
+            Utils.ShowNotification("ratted.systems",
+                $"service started and running in the background as {user.Username}.");
+        } catch (HttpRequestException ex)
+        {
+            Emi.Error("Network error while authenticating service user: " + ex);
+            Utils.ShowNotification("ratted.systems",
+                "network error while authenticating service user: " + ex.Message);
         }
-        
-        Utils.ShowNotification("ratted.systems", $"service started and running in the background as {user.Username}.");
-        
+
         ConfigManager.LoadServiceConfig();
         ConfigManager.WatchForConfigChanges();
         
