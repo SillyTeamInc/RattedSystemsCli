@@ -55,7 +55,7 @@ public class LinuxServiceUtil : IServiceUtil
 
     public bool IsServiceInstalled()
     {
-        var (outp, err) = RunSystemctl($"status {ServiceName}");
+        var (_, err) = RunSystemctl($"status {ServiceName}");
         if (err.Contains("could not be found", StringComparison.OrdinalIgnoreCase) ||
             err.Contains("not-found", StringComparison.OrdinalIgnoreCase))
         {
@@ -98,16 +98,20 @@ public class LinuxServiceUtil : IServiceUtil
         if (!string.IsNullOrWhiteSpace(dbus))
             envLines.Add($"Environment=DBUS_SESSION_BUS_ADDRESS={dbus}");
 
+        string? currentDesktop = Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP");
+        if (!string.IsNullOrWhiteSpace(currentDesktop))
+            envLines.Add($"Environment=XDG_CURRENT_DESKTOP={currentDesktop}");
+
         Emi.Info("Using the following environment variables for the service:");
         foreach (var line in envLines)
         {
             Emi.Info("  " + line.Replace("Environment=", ""));
         }
         
-        // Build the service file dynamically
         var serviceFileContent = $@"[Unit]
 Description=Ratted Systems Watcher Service
-After=graphical.target
+Wants=graphical-session.target
+After=graphical-session.target
 
 [Service]
 Type=simple
@@ -116,7 +120,7 @@ Restart=on-failure
 {string.Join(Environment.NewLine, envLines)}
 
 [Install]
-WantedBy=default.target
+WantedBy=graphical-session.target
 ";
 
         Directory.CreateDirectory(Path.GetDirectoryName(ServiceFilePath)!);
