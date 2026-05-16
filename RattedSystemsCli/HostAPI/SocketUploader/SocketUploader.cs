@@ -14,8 +14,8 @@ public class SocketUploader
     public string UploadEndpoint { get; set; } = "/api/v1/discord/socket";
     public string Domain { get; set; } = "ratted.systems";
     public WebSocket WebSocketClient { get; set; }
-    
-    
+
+
     public async Task ConnectAsync()
     {
         var client = new ClientWebSocket();
@@ -26,53 +26,54 @@ public class SocketUploader
         WebSocketClient = client;
         //Emi.Info("Connected to socket uploader.");
     }
-    
+
     public async Task AuthenticateAsync(string token)
     {
         //Emi.Info("Authenticating socket uploader...");
         await SendOp("auth", token);
-        var nextOp = await ReceiveNextOp(5000); 
+        var nextOp = await ReceiveNextOp(5000);
         if (!nextOp.GetDataProperty<bool>("success"))
         {
             string message = nextOp.GetDataProperty<string>("message") ?? "Unknown error";
             await CloseAsync();
             throw new Exception("Socket authentication failed: " + message);
         }
-        
+
         //Emi.Debug("AuthResult: " + nextOp.GetDataProperty<string>("message"));
         //Emi.Info("Socket uploader authenticated.");
     }
-    
-    public async Task<long> SolveProofOfWorkAsync(string challenge, int difficulty, CancellationToken cancellationToken = default)
+
+    public async Task<long> SolveProofOfWorkAsync(string challenge, int difficulty,
+        CancellationToken cancellationToken = default)
     {
         return await Task.Run(() =>
         {
             long nonce = 0;
             var targetPrefix = new string('0', difficulty);
-    
+
             using var sha256 = System.Security.Cryptography.SHA256.Create();
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-    
+
                 var inputBytes = Encoding.UTF8.GetBytes(challenge + nonce.ToString());
                 var hashBytes = sha256.ComputeHash(inputBytes);
                 var hashHex = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
-    
+
                 if (hashHex.StartsWith(targetPrefix))
                     return nonce;
-    
+
                 nonce++;
             }
         }, cancellationToken);
     }
-    
+
     public static async Task<string?> UploadFileAsync(string filePath)
     {
         Emi.Debug($"Uploading file via socket: {filePath}");
         var uploader = new SocketUploader();
         CancellationTokenSource cts = new CancellationTokenSource();
-        await using var progress = (CompositeProgressBackend)EmniFactory.Create(); 
+        await using var progress = (CompositeProgressBackend)EmniFactory.Create();
         progress.GetBackend<KdeProgressBackend>()?.OnCancel(() =>
         {
             cts.Cancel();
@@ -90,133 +91,120 @@ public class SocketUploader
 
             string fileName = Path.GetFileName(filePath);
             long fileSize = new FileInfo(filePath).Length;
-            await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+            await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 65536,
+                useAsync: true);
 
             await progress.UpdateAsync(0, "Starting upload...");
-            await uploader.SendOp("start_upload", new
-            {
-                fileName = fileName,
-                fileSize = fileSize
-            });
+            await uploader.SendOp("start_upload", new { fileName, fileSize });
 
-            var response = await uploader.ReceiveOp("pow_challenge", 10000);
-            if (response == null)
-            {
-                throw new Exception("Did not receive proof-of-work challenge from server.");
-            }
-
-            string challenge = response.GetDataProperty<string>("challenge") ?? "";
-            int difficulty = response.GetDataProperty<int>("difficulty");
-            //Emi.Debug($"Received proof-of-work challenge: {challenge} with difficulty {difficulty}");
+            var powChallenge = await uploader.ReceiveOp("pow_challenge", 10000)
+                               ?? throw new Exception("Did not receive proof-of-work challenge.");
+            string challenge = powChallenge.GetDataProperty<string>("challenge") ?? "";
+            int difficulty = powChallenge.GetDataProperty<int>("difficulty");
 
             long nonce = await uploader.SolveProofOfWorkAsync(challenge, difficulty, cts.Token);
-            //Emi.Debug($"Solved proof-of-work with nonce: {nonce}");
+            await uploader.SendOp("pow_solution", new { nonce });
 
-            await uploader.SendOp("pow_solution", new
-            {
-                nonce = nonce
-            });
             var uploadStart = await uploader.ReceiveOp("start_upload", 10000);
-            bool success = uploadStart?.GetDataProperty<bool>("success") ?? false;
-            string message = uploadStart?.GetDataProperty<string>("message") ?? "Unknown error";
-            if (!success)
+            if (uploadStart?.GetDataProperty<bool>("success") != true)
             {
-                await progress.UpdateAsync(0, "Upload failed!");
-                await progress.FinishAsync(false, message);
-                throw new Exception("Upload initiation failed: " + message);
+                string msg = uploadStart?.GetDataProperty<string>("message") ?? "Unknown error";
+                await progress.FinishAsync(false, msg);
+                throw new Exception("Upload initiation failed: " + msg);
             }
 
-            string oneTimeUploadToken = uploadStart?.GetDataProperty<string>("oneTimeUploadToken") ?? "";
-            int chunkSize = uploadStart?.GetDataProperty<int>("chunkSize") ?? 1024 * 1024;
+            string oneTimeUploadToken = uploadStart.GetDataProperty<string>("oneTimeUploadToken") ?? "";
+            int chunkSize = uploadStart.GetDataProperty<int>("chunkSize") is int cs and > 0 ? cs : 1024 * 1024 * 2;
 
-            string fileHash = "no"; // TODO: Implement if needed later
+            await uploader.SendRaw(Encoding.UTF8.GetBytes($"FILEUPLOAD_{oneTimeUploadToken}||no>>"));
 
-            string header = $"FILEUPLOAD_{oneTimeUploadToken}||{fileHash}>>";
-            byte[] headerBytes = Encoding.UTF8.GetBytes(header);
+            const int windowSize = 4;
+            var windowSlots = new SemaphoreSlim(windowSize, windowSize);
+            Exception? sendError = null;
+            // this is so peak....
+            var ackLoop = Task.Run(async () =>
+            {
+                long totalReceived = 0;
+                while (totalReceived < fileSize)
+                {
+                    var ack = await uploader.ReceiveOp("request_next_chunk", 120000);
+                    if (ack == null) throw new Exception("Chunk ack timeout.");
+
+                    totalReceived = ack.GetDataProperty<long>("totalReceived");
+                    double pct = ack.GetDataProperty<double>("percentage");
+                    double mbps = ack.GetDataProperty<double>("uploadSpeedMbps");
+                    ulong speedBps = mbps > 0 ? (ulong)(mbps * 1_000_000 / 8) : 0;
+
+                    if (pct < 100)
+                        await progress.UpdateAsync((float)pct, "Uploading");
+
+                    KdeProgressBackend? kde = progress.GetBackend<KdeProgressBackend>();
+                    if (kde != null)
+                    {
+                        await kde.SetDestUrlAsync($"https://{uploader.Domain}/");
+                        await kde.UpdateSpeedAsync(speedBps);
+                        await kde.UpdateAmountAsync((ulong)fileSize, (ulong)totalReceived, KdeJobUnit.Bytes);
+                        await kde.UpdateDescriptionFieldAsync(1, "Filename", fileName);
+                    }
+
+                    windowSlots.Release();
+                    cts.Token.ThrowIfCancellationRequested();
+                }
+            }, cts.Token);
+
             byte[] buffer = new byte[chunkSize];
             int bytesRead;
-
-            await uploader.SendRaw(headerBytes);
-
-            while ((bytesRead = await fileStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+            while ((bytesRead = await fileStream.ReadAsync(buffer, 0, buffer.Length, cts.Token)) > 0)
             {
-                byte[] chunkData = new byte[bytesRead];
-                Array.Copy(buffer, chunkData, bytesRead);
-                await uploader.SendRaw(chunkData);
+                await windowSlots.WaitAsync(cts.Token);
+                if (sendError != null) throw sendError;
 
-                var chunkResponse = await uploader.ReceiveOp("request_next_chunk", -1);
-                if (chunkResponse == null)
-                {
-                    await progress.UpdateAsync(0, "Upload failed!");
-                    await progress.FinishAsync(false, "Did not receive chunk request from server.");
-                    throw new Exception("Did not receive chunk request from server.");
-                }
-
-                ulong totalReceived = (ulong)chunkResponse.GetDataProperty<long>("totalReceived");
-                ulong totalSize = (ulong)chunkResponse.GetDataProperty<long>("totalSize");
-                double percentage = chunkResponse.GetDataProperty<double>("percentage");
-                double uploadSpeedMbps = chunkResponse.GetDataProperty<double>("uploadSpeedMbps");
-                // Convert uploadSpeedMbps to bytes per second
-                ulong uploadSpeedBps = uploadSpeedMbps > 0 ? (ulong)(uploadSpeedMbps * 1024 * 1024 / 8) : 0;
-
-                if (percentage < 100)
-                    await progress.UpdateAsync((float)percentage, $"Uploading");
-
-                KdeProgressBackend? kde = progress.GetBackend<KdeProgressBackend>();
-                if (kde != null)
-                {
-                    await kde.SetDestUrlAsync($"https://{uploader.Domain}/");
-                    await kde.UpdateSpeedAsync(uploadSpeedBps);
-                    await kde.UpdateAmountAsync(totalSize, totalReceived, KdeJobUnit.Bytes);
-                    await kde.UpdateDescriptionFieldAsync(1, "Filename", fileName);
-                }
-                 
-                cts.Token.ThrowIfCancellationRequested();
+                byte[] chunk = new byte[bytesRead];
+                Buffer.BlockCopy(buffer, 0, chunk, 0, bytesRead);
+                await uploader.SendRaw(chunk);
             }
 
-            await Console.Error.WriteLineAsync();
+            await ackLoop;
 
             var uploadComplete = await uploader.ReceiveOp("upload_complete", 30000);
-            bool uploadSuccess = uploadComplete?.GetDataProperty<bool>("success") ?? false;
-            string uploadMessage = uploadComplete?.GetDataProperty<string>("message") ?? "Unknown error";
-
-            if (!uploadSuccess)
+            if (uploadComplete?.GetDataProperty<bool>("success") != true)
             {
-                await progress.UpdateAsync(100, "Upload failed!");
-                await progress.FinishAsync(false, uploadMessage);
-                throw new Exception("File upload failed: " + uploadMessage);
+                string msg = uploadComplete?.GetDataProperty<string>("message") ?? "Unknown error";
+                await progress.FinishAsync(false, msg);
+                throw new Exception("File upload failed: " + msg);
             }
 
-            string uploadLink = uploadComplete?.GetDataProperty<string>("uploadLink") ?? "";
-
+            string uploadLink = uploadComplete.GetDataProperty<string>("uploadLink") ?? "";
             await progress.UpdateAsync(100, "Upload complete!");
             await progress.FinishAsync(true, "File uploaded successfully!");
-
-            Emi.Info("File uploaded successfully! Download link: " + uploadLink);
+            Emi.Info("File uploaded successfully: " + uploadLink);
             await uploader.CloseAsync();
             return uploadLink;
-        } catch (OperationCanceledException)
+        }
+        catch (OperationCanceledException)
         {
             await progress.FinishAsync(false, "Upload cancelled!");
             Emi.Info("Upload cancelled by user.");
             return null;
         }
     }
-    
+
     public async Task SendJson(object message)
     {
         string json = JsonSerializer.Serialize(message);
         byte[] buffer = Encoding.UTF8.GetBytes(json);
-        await WebSocketClient.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None);
+        await WebSocketClient.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true,
+            CancellationToken.None);
     }
-    
+
     public async Task SendString(string data)
     {
         byte[] buffer = Encoding.UTF8.GetBytes(data);
-        await WebSocketClient.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Binary, true, CancellationToken.None);
+        await WebSocketClient.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Binary, true,
+            CancellationToken.None);
     }
-    
-    
+
+
     public async Task<string?> ReceiveJson(int timeoutMs = -1)
     {
         var buffer = new byte[8192];
@@ -226,9 +214,10 @@ public class SocketUploader
             await CloseAsync();
             return null;
         }
+
         return Encoding.UTF8.GetString(buffer, 0, result.Count);
     }
-    
+
     public async Task SendOp(string op, object? data = null)
     {
         await SendJson(new SocketMessage
@@ -237,7 +226,7 @@ public class SocketUploader
             Data = data
         });
     }
-    
+
     public async Task<SocketMessage?> ReceiveOp(string expectedOp, int timeoutMs = -1)
     {
         byte[] buffer = new byte[1024 * 4];
@@ -245,7 +234,7 @@ public class SocketUploader
         using (var cts = new CancellationTokenSource())
         {
             if (timeoutMs > 0) cts.CancelAfter(timeoutMs);
-    
+
             while (true)
             {
                 result = await WebSocketClient.ReceiveAsync(new ArraySegment<byte>(buffer), cts.Token);
@@ -257,12 +246,12 @@ public class SocketUploader
                     if (socketMessage != null && socketMessage.Op == expectedOp)
                         return socketMessage;
                 }
-                
+
                 if (cts.Token.IsCancellationRequested) return null;
             }
         }
     }
-    
+
     public async Task<SocketMessage?> ReceiveNextOp(int timeoutMs = -1)
     {
         byte[] buffer = new byte[1024 * 4];
@@ -270,7 +259,7 @@ public class SocketUploader
         using (var cts = new CancellationTokenSource())
         {
             if (timeoutMs > 0) cts.CancelAfter(timeoutMs);
-    
+
             while (true)
             {
                 result = await WebSocketClient.ReceiveAsync(new ArraySegment<byte>(buffer), cts.Token);
@@ -282,7 +271,7 @@ public class SocketUploader
                     if (socketMessage != null)
                         return socketMessage;
                 }
-                
+
                 if (cts.Token.IsCancellationRequested) return null;
             }
         }
@@ -292,12 +281,13 @@ public class SocketUploader
     {
         await WebSocketClient.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
     }
-    
+
     public async Task SendRaw(byte[] data)
     {
-        await WebSocketClient.SendAsync(new ArraySegment<byte>(data), WebSocketMessageType.Binary, true, CancellationToken.None);
+        await WebSocketClient.SendAsync(new ArraySegment<byte>(data), WebSocketMessageType.Binary, true,
+            CancellationToken.None);
     }
-    
+
     public async Task<byte[]> ReceiveRaw(int timeoutMs = -1)
     {
         var buffer = new byte[8192];
@@ -307,10 +297,9 @@ public class SocketUploader
             await CloseAsync();
             return [];
         }
+
         var receivedData = new byte[result.Count];
         Array.Copy(buffer, receivedData, result.Count);
         return receivedData;
     }
-    
-
 }
