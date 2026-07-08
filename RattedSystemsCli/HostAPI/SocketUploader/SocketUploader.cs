@@ -19,17 +19,15 @@ public class SocketUploader
     public async Task ConnectAsync()
     {
         var client = new ClientWebSocket();
-        //Emi.Info("Connecting to socket uploader...");
+
         client.Options.SetRequestHeader("User-Agent", Utils.GetUserAgent());
         var uri = new Uri($"wss://{Domain}{UploadEndpoint}");
         await client.ConnectAsync(uri, CancellationToken.None);
         WebSocketClient = client;
-        //Emi.Info("Connected to socket uploader.");
     }
 
     public async Task AuthenticateAsync(string token)
     {
-        //Emi.Info("Authenticating socket uploader...");
         await SendOp("auth", token);
         var nextOp = await ReceiveNextOp(5000);
         if (!nextOp.GetDataProperty<bool>("success"))
@@ -38,9 +36,6 @@ public class SocketUploader
             await CloseAsync();
             throw new Exception("Socket authentication failed: " + message);
         }
-
-        //Emi.Debug("AuthResult: " + nextOp.GetDataProperty<string>("message"));
-        //Emi.Info("Socket uploader authenticated.");
     }
 
     public async Task<long> SolveProofOfWorkAsync(string challenge, int difficulty,
@@ -279,7 +274,13 @@ public class SocketUploader
 
     public async Task CloseAsync()
     {
-        await WebSocketClient.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+        try
+        {
+            await WebSocketClient.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+        } catch
+        {
+            // ignored as the server probably closed first 
+        }
     }
 
     public async Task SendRaw(byte[] data)
