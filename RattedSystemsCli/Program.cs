@@ -33,7 +33,9 @@ class Program
         {
             args = new string[]
             {
-                "--run-as-service",
+                "--upload-method:socket",
+                "--upload-file:RattedSystemsCli",
+                "--copy-to-clipboard"
             };
         }
         

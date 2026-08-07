@@ -173,13 +173,26 @@ public class SocketUploader
             await progress.UpdateAsync(100, "Upload complete!");
             await progress.FinishAsync(true, "File uploaded successfully!");
             Emi.Info("File uploaded successfully: " + uploadLink);
-            await uploader.CloseAsync();
+            try
+            {
+                await uploader.CloseAsync();
+            }
+            catch
+            {
+                // the server closed before us whatever, who cares 
+            }
+
             return uploadLink;
         }
         catch (OperationCanceledException)
         {
             await progress.FinishAsync(false, "Upload cancelled!");
             Emi.Info("Upload cancelled by user.");
+            return null;
+        } catch (Exception ex)
+        {
+            await progress.FinishAsync(false, "Upload failed - " + ex.Message);
+            Emi.Error("Upload failed: " + ex.Message);
             return null;
         }
     }
