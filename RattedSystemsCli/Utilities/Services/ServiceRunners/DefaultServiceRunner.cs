@@ -59,13 +59,13 @@ public class DefaultServiceRunner : IServiceRunner
         {
             FolderPath = watchDir,
             Filter = fileFilter,
-            NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.CreationTime,
+            NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.CreationTime,
             IncludeSubdirectories = config?.IncludeSubdirectories ?? false,
         };
 
         Emi.Info("Watching directory: " + watchDir);
         
-        watcher.OnChanged += async (sender, @event) =>
+        watcher.OnCreated += async (sender, @event) =>
         {
             Task.Run(async () =>
             {
